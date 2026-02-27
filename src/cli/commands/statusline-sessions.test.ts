@@ -1,0 +1,98 @@
+import { DEFAULT_CONFIG } from "../../config/defaults"
+import {
+  renderStatuslineSessions,
+  runStatuslineSessions,
+} from "./statusline-sessions"
+
+describe("renderStatuslineSessions", () => {
+  it("renders clickable segments with current session styling", () => {
+    const output = renderStatuslineSessions({
+      sessions: [
+        { id: "$1", name: "dev" },
+        { id: "$2", name: "work" },
+      ],
+      currentSession: "work",
+      config: DEFAULT_CONFIG.statuslineSessions,
+    })
+
+    expect(output).toMatchInlineSnapshot(
+      '"#[fg=#A5A1F2,bg=#352F63,nobold] #[range=session|$1]#[fg=#C6D0F5,bg=#352F63,nobold] dev #[fg=#A5A1F2,bg=#352F63,nobold]#[norange] #[range=session|$2]#[fg=#B4BEFE,bg=#352F63,nobold]#[fg=#1E1E2E,bg=#B4BEFE,bold] work #[fg=#B4BEFE,bg=#352F63,nobold]#[fg=#A5A1F2,bg=#352F63,nobold]#[norange]"',
+    )
+  })
+})
+
+describe("runStatuslineSessions", () => {
+  const createCollector = (): {
+    lines: string[]
+    write: (line: string) => void
+  } => {
+    const lines: string[] = []
+    return {
+      lines,
+      write: (line: string): void => {
+        lines.push(line)
+      },
+    }
+  }
+
+  it("prints usage with --help", async () => {
+    const stdout = createCollector()
+    const stderr = createCollector()
+
+    const exitCode = await runStatuslineSessions(["--help"], {
+      programName: "vtm",
+      stdout: stdout.write,
+      stderr: stderr.write,
+    })
+
+    expect(exitCode).toBe(0)
+    expect(stdout.lines.join("\n")).toContain("Usage: vtm statusline-sessions")
+    expect(stderr.lines).toHaveLength(0)
+  })
+
+  it("returns usage error when positional args are provided", async () => {
+    const stdout = createCollector()
+    const stderr = createCollector()
+
+    const exitCode = await runStatuslineSessions(["extra"], {
+      programName: "vtm",
+      stdout: stdout.write,
+      stderr: stderr.write,
+    })
+
+    expect(exitCode).toBe(2)
+    expect(stderr.lines.join("\n")).toContain("Usage: vtm statusline-sessions")
+  })
+
+  it("renders statusline output with injected dependencies", async () => {
+    const stdout = createCollector()
+    const stderr = createCollector()
+
+    const tmux = {
+      listSessionIdentities: vi.fn(async () => [
+        { id: "$1", name: "dev" },
+        { id: "$2", name: "work" },
+      ]),
+      currentSession: vi.fn(async () => "dev"),
+    } as const
+
+    const loadConfigFn = vi.fn(async () => ({
+      config: DEFAULT_CONFIG,
+      path: "/tmp/config.yaml",
+      loaded: false,
+    }))
+
+    const exitCode = await runStatuslineSessions([], {
+      programName: "vtm",
+      stdout: stdout.write,
+      stderr: stderr.write,
+      tmux,
+      loadConfigFn,
+    })
+
+    expect(exitCode).toBe(0)
+    expect(stdout.lines[0]).toContain("#[range=session|$1]")
+    expect(stdout.lines[0]).toContain("#[norange]")
+    expect(stderr.lines).toHaveLength(0)
+  })
+})

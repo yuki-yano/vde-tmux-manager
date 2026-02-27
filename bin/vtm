@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+
+import { runMain } from "../dist/index.mjs"
+
+const exitCode = await runMain({
+  argv: process.argv,
+})
+
+if (exitCode !== 0) {
+  process.exit(exitCode)
+}
