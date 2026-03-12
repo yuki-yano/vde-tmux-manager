@@ -82,6 +82,9 @@ describe("runStatuslineSessions", () => {
 
     expect(exitCode).toBe(0)
     expect(stdout.lines.join("\n")).toContain("Usage: vtm statusline-sessions")
+    expect(stdout.lines.join("\n")).toContain(
+      "statusline-sessions switch <index>",
+    )
     expect(stdout.lines.join("\n")).toContain("--show-index")
     expect(stderr.lines).toHaveLength(0)
   })
@@ -162,5 +165,77 @@ describe("runStatuslineSessions", () => {
     expect(stdout.lines[0]).toContain(" 1 dev ")
     expect(stdout.lines[0]).toContain(" 2 work ")
     expect(stderr.lines).toHaveLength(0)
+  })
+
+  it("switches to the session at the given 1-based index", async () => {
+    const stdout = createCollector()
+    const stderr = createCollector()
+
+    const tmux = {
+      listSessionIdentities: vi.fn(async () => [
+        { id: "$1", name: "dev" },
+        { id: "$2", name: "work" },
+      ]),
+      currentSession: vi.fn(async () => "dev"),
+      switchClient: vi.fn(async () => undefined),
+    } as const
+
+    const exitCode = await runStatuslineSessions(["switch", "2"], {
+      programName: "vtm",
+      stdout: stdout.write,
+      stderr: stderr.write,
+      tmux,
+    })
+
+    expect(exitCode).toBe(0)
+    expect(tmux.switchClient).toHaveBeenCalledWith("work")
+    expect(stdout.lines).toHaveLength(0)
+    expect(stderr.lines).toHaveLength(0)
+  })
+
+  it("returns usage error when switch index is not a positive integer", async () => {
+    const stdout = createCollector()
+    const stderr = createCollector()
+
+    const tmux = {
+      listSessionIdentities: vi.fn(async () => []),
+      currentSession: vi.fn(async () => "dev"),
+      switchClient: vi.fn(async () => undefined),
+    } as const
+
+    const exitCode = await runStatuslineSessions(["switch", "0"], {
+      programName: "vtm",
+      stdout: stdout.write,
+      stderr: stderr.write,
+      tmux,
+    })
+
+    expect(exitCode).toBe(2)
+    expect(stderr.lines.join("\n")).toContain(
+      "index must be a positive integer: 0",
+    )
+    expect(tmux.switchClient).not.toHaveBeenCalled()
+  })
+
+  it("returns error when switch target index does not exist", async () => {
+    const stdout = createCollector()
+    const stderr = createCollector()
+
+    const tmux = {
+      listSessionIdentities: vi.fn(async () => [{ id: "$1", name: "dev" }]),
+      currentSession: vi.fn(async () => "dev"),
+      switchClient: vi.fn(async () => undefined),
+    } as const
+
+    const exitCode = await runStatuslineSessions(["switch", "2"], {
+      programName: "vtm",
+      stdout: stdout.write,
+      stderr: stderr.write,
+      tmux,
+    })
+
+    expect(exitCode).toBe(1)
+    expect(stderr.lines.join("\n")).toContain("session not found at index 2")
+    expect(tmux.switchClient).not.toHaveBeenCalled()
   })
 })

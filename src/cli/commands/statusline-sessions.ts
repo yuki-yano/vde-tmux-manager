@@ -4,6 +4,7 @@ import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 import type { SessionIdentity } from "../../tmux/parse"
 
 const EXIT_CODE_OK = 0
+const EXIT_CODE_ERROR = 1
 const EXIT_CODE_USAGE = 2
 
 const isHelpFlag = (value: string): boolean =>
@@ -11,12 +12,16 @@ const isHelpFlag = (value: string): boolean =>
 
 const usageText = (programName: string): string => {
   return [
-    `Usage: ${programName} statusline-sessions`,
+    `Usage: ${programName} statusline-sessions [--show-index]`,
+    `       ${programName} statusline-sessions switch <index>`,
     "",
-    "Print tmux statusline session segments.",
+    "Print tmux statusline session segments or switch sessions by index.",
     "",
     "Options:",
     "  --show-index  Prefix session names with 1-based indexes (1-9 only)",
+    "",
+    "Commands:",
+    "  switch <index>  Switch to the session at the given 1-based index",
   ].join("\n")
 }
 
@@ -89,8 +94,33 @@ export type RunStatuslineSessionsDeps = {
   readonly programName: string
   readonly stdout: (line: string) => void
   readonly stderr: (line: string) => void
-  readonly tmux?: Pick<TmuxClient, "listSessionIdentities" | "currentSession">
+  readonly tmux?: Pick<TmuxClient, "listSessionIdentities" | "currentSession"> &
+    Partial<Pick<TmuxClient, "switchClient">>
   readonly loadConfigFn?: typeof loadConfig
+}
+
+const parseSwitchIndex = (value: string): number | null => {
+  if (/^[1-9]\d*$/.test(value) !== true) {
+    return null
+  }
+
+  return Number.parseInt(value, 10)
+}
+
+const resolveSessionNameByIndex = ({
+  sessions,
+  targetIndex,
+}: {
+  readonly sessions: ReadonlyArray<SessionIdentity>
+  readonly targetIndex: number
+}): string | null => {
+  for (const [index, session] of sessions.entries()) {
+    if (index + 1 === targetIndex) {
+      return session.name
+    }
+  }
+
+  return null
 }
 
 export const runStatuslineSessions = async (
@@ -103,14 +133,49 @@ export const runStatuslineSessions = async (
     loadConfigFn = loadConfig,
   }: RunStatuslineSessionsDeps,
 ): Promise<number> => {
+  if (args.length > 0 && isHelpFlag(args[0] as string)) {
+    stdout(usageText(programName))
+    return EXIT_CODE_OK
+  }
+
+  if (args[0] === "switch") {
+    if (args.length !== 2) {
+      stderr(`[USAGE] ${usageText(programName)}`)
+      return EXIT_CODE_USAGE
+    }
+
+    const targetIndex = parseSwitchIndex(args[1] as string)
+    if (targetIndex === null) {
+      stderr(
+        `${programName} statusline-sessions: index must be a positive integer: ${args[1]}`,
+      )
+      return EXIT_CODE_USAGE
+    }
+
+    const sessions = await tmux.listSessionIdentities()
+    const targetSessionName = resolveSessionNameByIndex({
+      sessions,
+      targetIndex,
+    })
+
+    if (targetSessionName === null) {
+      stderr(
+        `${programName} statusline-sessions: session not found at index ${targetIndex}`,
+      )
+      return EXIT_CODE_ERROR
+    }
+
+    if (typeof tmux.switchClient !== "function") {
+      throw new Error("tmux.switchClient is required for switch command")
+    }
+
+    await tmux.switchClient(targetSessionName)
+    return EXIT_CODE_OK
+  }
+
   let showIndexOverride: boolean | undefined
 
   for (const arg of args) {
-    if (isHelpFlag(arg)) {
-      stdout(usageText(programName))
-      return EXIT_CODE_OK
-    }
-
     if (arg === "--show-index") {
       showIndexOverride = true
       continue

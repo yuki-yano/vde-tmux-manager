@@ -44,6 +44,7 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager kill-window <target>`
 - `vtm session-manager kill-pane <target>`
 - `vtm statusline-sessions`
+- `vtm statusline-sessions switch 2`
 - `vtm --help`
 - `vtm --version`
 
@@ -126,6 +127,12 @@ set -g status-right '#(vtm statusline-sessions) #[fg=colour250]| %Y-%m-%d %H:%M'
 
 ```tmux
 set -g status-right '#(vtm statusline-sessions --show-index) #[fg=colour250]| %Y-%m-%d %H:%M'
+```
+
+表示された 1 始まりの index で session を切り替える:
+
+```bash
+vtm statusline-sessions switch 2
 ```
 
 kill 操作に絞ったシンプルな右クリックメニュー:

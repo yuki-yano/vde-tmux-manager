@@ -44,6 +44,7 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager kill-window <target>`
 - `vtm session-manager kill-pane <target>`
 - `vtm statusline-sessions`
+- `vtm statusline-sessions switch 2`
 - `vtm --help`
 - `vtm --version`
 
@@ -126,6 +127,12 @@ Show 1-based indexes before session names when needed:
 
 ```tmux
 set -g status-right '#(vtm statusline-sessions --show-index) #[fg=colour250]| %Y-%m-%d %H:%M'
+```
+
+Switch to a session by the displayed 1-based index:
+
+```bash
+vtm statusline-sessions switch 2
 ```
 
 Simple right-click menu for kill actions:
