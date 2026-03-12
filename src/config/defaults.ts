@@ -29,6 +29,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     },
   },
   statuslineSessions: {
+    showIndex: false,
     colors: {
       baseFg: "#A5A1F2",
       baseBg: "#352F63",

@@ -88,6 +88,7 @@ sessionManager:
     killWaitMs: 300
 
 statuslineSessions:
+  showIndex: false
   colors:
     baseFg: "#A5A1F2"
     baseBg: "#352F63"
@@ -119,6 +120,12 @@ Use in statusline:
 
 ```tmux
 set -g status-right '#(vtm statusline-sessions) #[fg=colour250]| %Y-%m-%d %H:%M'
+```
+
+Show 1-based indexes before session names when needed:
+
+```tmux
+set -g status-right '#(vtm statusline-sessions --show-index) #[fg=colour250]| %Y-%m-%d %H:%M'
 ```
 
 Simple right-click menu for kill actions:

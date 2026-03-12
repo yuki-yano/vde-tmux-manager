@@ -88,6 +88,7 @@ sessionManager:
     killWaitMs: 300
 
 statuslineSessions:
+  showIndex: false
   colors:
     baseFg: "#A5A1F2"
     baseBg: "#352F63"
@@ -119,6 +120,12 @@ statusline で利用する:
 
 ```tmux
 set -g status-right '#(vtm statusline-sessions) #[fg=colour250]| %Y-%m-%d %H:%M'
+```
+
+必要なときだけ 1 始まりの index を出す:
+
+```tmux
+set -g status-right '#(vtm statusline-sessions --show-index) #[fg=colour250]| %Y-%m-%d %H:%M'
 ```
 
 kill 操作に絞ったシンプルな右クリックメニュー:

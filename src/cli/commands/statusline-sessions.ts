@@ -14,19 +14,27 @@ const usageText = (programName: string): string => {
     `Usage: ${programName} statusline-sessions`,
     "",
     "Print tmux statusline session segments.",
+    "",
+    "Options:",
+    "  --show-index  Prefix session names with 1-based indexes (1-9 only)",
   ].join("\n")
 }
 
 const buildSessionLabel = ({
+  index,
   name,
+  showIndex,
   prefix,
   suffix,
 }: {
+  readonly index: number
   readonly name: string
+  readonly showIndex: boolean
   readonly prefix: string
   readonly suffix: string
 }): string => {
-  return `${prefix} ${name} ${suffix}`
+  const label = showIndex && index <= 9 ? `${String(index)} ${name}` : `${name}`
+  return `${prefix} ${label} ${suffix}`
 }
 
 export const renderStatuslineSessions = ({
@@ -41,7 +49,7 @@ export const renderStatuslineSessions = ({
   const base = config.colors
   let output = `#[fg=${base.baseFg},bg=${base.baseBg},nobold]`
 
-  for (const session of sessions) {
+  for (const [index, session] of sessions.entries()) {
     output += " "
     output += `#[range=session|${session.id}]`
 
@@ -50,7 +58,9 @@ export const renderStatuslineSessions = ({
       output += `${config.fonts.currentPrefix}`
       output += `#[fg=${base.currentFg},bg=${base.currentBg},bold]`
       output += buildSessionLabel({
+        index: index + 1,
         name: session.name,
+        showIndex: config.showIndex,
         prefix: "",
         suffix: "",
       })
@@ -60,7 +70,9 @@ export const renderStatuslineSessions = ({
     } else {
       output += `#[fg=${base.otherFg},bg=${base.baseBg},nobold]`
       output += buildSessionLabel({
+        index: index + 1,
         name: session.name,
+        showIndex: config.showIndex,
         prefix: config.fonts.otherPrefix,
         suffix: config.fonts.otherSuffix,
       })
@@ -91,12 +103,19 @@ export const runStatuslineSessions = async (
     loadConfigFn = loadConfig,
   }: RunStatuslineSessionsDeps,
 ): Promise<number> => {
-  if (args.length > 0 && isHelpFlag(args[0] as string)) {
-    stdout(usageText(programName))
-    return EXIT_CODE_OK
-  }
+  let showIndexOverride: boolean | undefined
 
-  if (args.length > 0) {
+  for (const arg of args) {
+    if (isHelpFlag(arg)) {
+      stdout(usageText(programName))
+      return EXIT_CODE_OK
+    }
+
+    if (arg === "--show-index") {
+      showIndexOverride = true
+      continue
+    }
+
     stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
@@ -110,7 +129,10 @@ export const runStatuslineSessions = async (
     renderStatuslineSessions({
       sessions,
       currentSession,
-      config: config.statuslineSessions,
+      config: {
+        ...config.statuslineSessions,
+        showIndex: showIndexOverride ?? config.statuslineSessions.showIndex,
+      },
     }),
   )
 

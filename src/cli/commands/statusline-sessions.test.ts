@@ -19,6 +19,41 @@ describe("renderStatuslineSessions", () => {
       '"#[fg=#A5A1F2,bg=#352F63,nobold] #[range=session|$1]#[fg=#C6D0F5,bg=#352F63,nobold] dev #[fg=#A5A1F2,bg=#352F63,nobold]#[norange] #[range=session|$2]#[fg=#B4BEFE,bg=#352F63,nobold]#[fg=#1E1E2E,bg=#B4BEFE,bold] work #[fg=#B4BEFE,bg=#352F63,nobold]#[fg=#A5A1F2,bg=#352F63,nobold]#[norange]"',
     )
   })
+
+  it("renders 1-based indexes before session names when enabled", () => {
+    const output = renderStatuslineSessions({
+      sessions: [
+        { id: "$1", name: "dev" },
+        { id: "$2", name: "work" },
+      ],
+      currentSession: "work",
+      config: {
+        ...DEFAULT_CONFIG.statuslineSessions,
+        showIndex: true,
+      },
+    })
+
+    expect(output).toContain(" 1 dev ")
+    expect(output).toContain(" 2 work ")
+  })
+
+  it("omits indexes greater than 9 to match tmux-list-sessions", () => {
+    const output = renderStatuslineSessions({
+      sessions: Array.from({ length: 10 }, (_, index) => ({
+        id: `$${index + 1}`,
+        name: `session-${index + 1}`,
+      })),
+      currentSession: "session-10",
+      config: {
+        ...DEFAULT_CONFIG.statuslineSessions,
+        showIndex: true,
+      },
+    })
+
+    expect(output).toContain(" 9 session-9 ")
+    expect(output).not.toContain("10 session-10")
+    expect(output).toContain(" session-10 ")
+  })
 })
 
 describe("runStatuslineSessions", () => {
@@ -47,6 +82,7 @@ describe("runStatuslineSessions", () => {
 
     expect(exitCode).toBe(0)
     expect(stdout.lines.join("\n")).toContain("Usage: vtm statusline-sessions")
+    expect(stdout.lines.join("\n")).toContain("--show-index")
     expect(stderr.lines).toHaveLength(0)
   })
 
@@ -93,6 +129,38 @@ describe("runStatuslineSessions", () => {
     expect(exitCode).toBe(0)
     expect(stdout.lines[0]).toContain("#[range=session|$1]")
     expect(stdout.lines[0]).toContain("#[norange]")
+    expect(stderr.lines).toHaveLength(0)
+  })
+
+  it("renders indexes when --show-index is provided", async () => {
+    const stdout = createCollector()
+    const stderr = createCollector()
+
+    const tmux = {
+      listSessionIdentities: vi.fn(async () => [
+        { id: "$1", name: "dev" },
+        { id: "$2", name: "work" },
+      ]),
+      currentSession: vi.fn(async () => "dev"),
+    } as const
+
+    const loadConfigFn = vi.fn(async () => ({
+      config: DEFAULT_CONFIG,
+      path: "/tmp/config.yaml",
+      loaded: false,
+    }))
+
+    const exitCode = await runStatuslineSessions(["--show-index"], {
+      programName: "vtm",
+      stdout: stdout.write,
+      stderr: stderr.write,
+      tmux,
+      loadConfigFn,
+    })
+
+    expect(exitCode).toBe(0)
+    expect(stdout.lines[0]).toContain(" 1 dev ")
+    expect(stdout.lines[0]).toContain(" 2 work ")
     expect(stderr.lines).toHaveLength(0)
   })
 })

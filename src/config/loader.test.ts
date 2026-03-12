@@ -46,6 +46,7 @@ describe("loadConfig", () => {
       "  fzf:",
       '    prompt: "custom> "',
       "statuslineSessions:",
+      "  showIndex: true",
       "  fonts:",
       '    otherPrefix: "["',
       '    otherSuffix: "]"',
@@ -66,6 +67,7 @@ describe("loadConfig", () => {
     )
     expect(result.config.statuslineSessions.fonts.otherPrefix).toBe("[")
     expect(result.config.statuslineSessions.fonts.otherSuffix).toBe("]")
+    expect(result.config.statuslineSessions.showIndex).toBe(true)
   })
 
   it("throws ConfigValidationError for invalid YAML", async () => {

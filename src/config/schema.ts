@@ -45,6 +45,7 @@ export type StatuslineSessionsFontsConfig = {
 }
 
 export type StatuslineSessionsConfig = {
+  showIndex: boolean
   colors: StatuslineSessionsColorsConfig
   fonts: StatuslineSessionsFontsConfig
 }
@@ -62,6 +63,7 @@ export type PartialConfig = {
     kill?: Partial<SessionManagerKillConfig>
   }
   statuslineSessions?: {
+    showIndex?: boolean
     colors?: Partial<StatuslineSessionsColorsConfig>
     fonts?: Partial<StatuslineSessionsFontsConfig>
   }
@@ -787,7 +789,14 @@ const parseStatuslineSessions = (
     return undefined
   }
 
-  ensureNoUnknownKeys(value, ["colors", "fonts"], path, issues)
+  ensureNoUnknownKeys(value, ["showIndex", "colors", "fonts"], path, issues)
+
+  const showIndex = parseBoolean(
+    value.showIndex,
+    [...path, "showIndex"],
+    issues,
+    requiredFields,
+  )
 
   const colors = parseColorsConfig(
     value.colors,
@@ -805,10 +814,14 @@ const parseStatuslineSessions = (
   )
 
   const partial: {
+    showIndex?: boolean
     colors?: Partial<StatuslineSessionsColorsConfig>
     fonts?: Partial<StatuslineSessionsFontsConfig>
   } = {}
 
+  if (showIndex !== undefined) {
+    partial.showIndex = showIndex
+  }
   if (colors !== undefined) {
     partial.colors = colors as Partial<StatuslineSessionsColorsConfig>
   }
@@ -817,7 +830,11 @@ const parseStatuslineSessions = (
   }
 
   if (requiredFields) {
-    if (partial.colors === undefined || partial.fonts === undefined) {
+    if (
+      partial.showIndex === undefined ||
+      partial.colors === undefined ||
+      partial.fonts === undefined
+    ) {
       return undefined
     }
     return partial as StatuslineSessionsConfig
