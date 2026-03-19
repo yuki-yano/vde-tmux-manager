@@ -22,6 +22,9 @@ describe("runProject", () => {
       listSessionDetails: vi.fn(async () => []),
       newSessionInteractiveNamed: vi.fn(async () => undefined),
       newSessionDetachedNamed: vi.fn(async () => undefined),
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async () => ""),
+      setClientOption: vi.fn(async () => undefined),
       setSessionOption: vi.fn(async () => undefined),
       switchClient: vi.fn(async () => undefined),
     }

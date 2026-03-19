@@ -1,12 +1,33 @@
 import { DEFAULT_CONFIG } from "../../config/defaults"
 import { __internal } from "./session-manager"
 
+const configWithCategories = {
+  ...DEFAULT_CONFIG,
+  categories: {
+    defaultCategory: "default",
+    rules: [
+      {
+        category: "work",
+        ghqPatterns: ["github.com/company/**"],
+        pathPatterns: [],
+      },
+      {
+        category: "private",
+        ghqPatterns: [],
+        pathPatterns: ["/tmp/**"],
+      },
+    ],
+    sessionNameRules: [],
+  },
+}
+
 const createTmuxMock = (): {
   readonly listSessions: ReturnType<typeof vi.fn>
   readonly listSessionDetails: ReturnType<typeof vi.fn>
   readonly currentSession: ReturnType<typeof vi.fn>
   readonly currentClientName: ReturnType<typeof vi.fn>
   readonly showClientOption: ReturnType<typeof vi.fn>
+  readonly setClientOption: ReturnType<typeof vi.fn>
   readonly listWindows: ReturnType<typeof vi.fn>
   readonly run: ReturnType<typeof vi.fn>
   readonly switchClient: ReturnType<typeof vi.fn>
@@ -50,7 +71,13 @@ const createTmuxMock = (): {
     ]),
     currentSession: vi.fn(async () => "dev"),
     currentClientName: vi.fn(async () => "/dev/ttys001"),
-    showClientOption: vi.fn(async () => "work"),
+    showClientOption: vi.fn(async (_target: string, option: string) => {
+      if (option === "category_last_sessions") {
+        return ""
+      }
+      return "work"
+    }),
+    setClientOption: vi.fn(async () => undefined),
     listWindows: vi.fn(async (_name: string) => [
       {
         index: "0",
@@ -369,19 +396,26 @@ describe("session-manager internals", () => {
     await __internal.runSelection({
       lines: ["session\tdev"],
       tmux: tmux as never,
-      config: DEFAULT_CONFIG,
+      config: configWithCategories,
       popup: false,
       stderr: vi.fn(),
       runner: runner as never,
-      env: { TMUX: "1" },
+      env: { TMUX: "1", HOME: "/Users/test", GHQ_ROOT: "/Users/test/ghq" },
     })
 
     expect(tmux.switchClient).toHaveBeenCalledWith("dev")
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "category_last_sessions",
+      JSON.stringify({
+        work: "dev",
+      }),
+    )
 
     await __internal.runSelection({
       lines: ["window\tdev:0"],
       tmux: tmux as never,
-      config: DEFAULT_CONFIG,
+      config: configWithCategories,
       popup: false,
       stderr: vi.fn(),
       runner: runner as never,

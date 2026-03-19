@@ -9,6 +9,7 @@ import {
 } from "../process/exec"
 import type { TmuxClient } from "../tmux/client"
 import { resolveProjectPathCategory } from "./matcher"
+import { switchClientAndRememberSession } from "./state"
 
 type Runner = (
   command: string,
@@ -101,6 +102,9 @@ export const switchProjectSession = async ({
     | "listSessionDetails"
     | "newSessionDetachedNamed"
     | "newSessionInteractiveNamed"
+    | "currentClientName"
+    | "showClientOption"
+    | "setClientOption"
     | "setSessionOption"
     | "switchClient"
   >
@@ -164,7 +168,14 @@ export const switchProjectSession = async ({
   })
 
   if (inTmux) {
-    await tmux.switchClient(sessionName)
+    await switchClientAndRememberSession({
+      tmux,
+      config,
+      sessionName,
+      categoryName: category,
+      homeDirectory,
+      ghqRoot,
+    })
   }
 
   return {

@@ -6,6 +6,15 @@ import type { SessionDetails } from "../tmux/parse"
 const CURRENT_CATEGORY_OPTION = "current_category"
 const CATEGORY_OPTION = "category"
 const CATEGORY_OVERRIDE_OPTION = "category_override"
+const CATEGORY_LAST_SESSIONS_OPTION = "category_last_sessions"
+
+type CategoryLastSessionsState = Record<string, string>
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return (
+    value !== null && typeof value === "object" && Array.isArray(value) !== true
+  )
+}
 
 const ensureKnownCategory = ({
   config,
@@ -26,6 +35,78 @@ const ensureKnownCategory = ({
   return normalized
 }
 
+const requireCurrentClientName = async ({
+  tmux,
+  errorMessage,
+}: {
+  readonly tmux: Pick<TmuxClient, "currentClientName">
+  readonly errorMessage: string
+}): Promise<string> => {
+  const clientName = await tmux.currentClientName()
+  if (clientName.length === 0) {
+    throw new Error(errorMessage)
+  }
+  return clientName
+}
+
+const parseCategoryLastSessionsState = (
+  rawState: string,
+): CategoryLastSessionsState => {
+  const normalized = rawState.trim()
+  if (normalized.length === 0) {
+    return {}
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(normalized)
+  } catch {
+    throw new Error("invalid category last-session state")
+  }
+
+  if (!isRecord(parsed)) {
+    throw new Error("invalid category last-session state")
+  }
+
+  const result: CategoryLastSessionsState = {}
+  for (const [categoryName, sessionName] of Object.entries(parsed)) {
+    if (typeof sessionName !== "string" || sessionName.trim().length === 0) {
+      throw new Error("invalid category last-session state")
+    }
+    result[categoryName] = sessionName
+  }
+
+  return result
+}
+
+const readCategoryLastSessionsState = async ({
+  tmux,
+  clientName,
+}: {
+  readonly tmux: Pick<TmuxClient, "showClientOption">
+  readonly clientName: string
+}): Promise<CategoryLastSessionsState> => {
+  return parseCategoryLastSessionsState(
+    await tmux.showClientOption(clientName, CATEGORY_LAST_SESSIONS_OPTION),
+  )
+}
+
+const writeCategoryLastSessionsState = async ({
+  tmux,
+  clientName,
+  state,
+}: {
+  readonly tmux: Pick<TmuxClient, "setClientOption">
+  readonly clientName: string
+  readonly state: CategoryLastSessionsState
+}): Promise<void> => {
+  await tmux.setClientOption(
+    clientName,
+    CATEGORY_LAST_SESSIONS_OPTION,
+    JSON.stringify(state),
+  )
+}
+
 export const getCurrentCategory = async ({
   tmux,
   config,
@@ -33,8 +114,13 @@ export const getCurrentCategory = async ({
   readonly tmux: Pick<TmuxClient, "currentClientName" | "showClientOption">
   readonly config: ResolvedConfig
 }): Promise<string> => {
-  const clientName = await tmux.currentClientName()
-  if (clientName.length === 0) {
+  let clientName: string
+  try {
+    clientName = await requireCurrentClientName({
+      tmux,
+      errorMessage: "current category requires tmux client context",
+    })
+  } catch {
     return config.categories.defaultCategory
   }
 
@@ -61,14 +147,62 @@ export const setCurrentCategory = async ({
   readonly config: ResolvedConfig
   readonly categoryName: string
 }): Promise<string> => {
-  const clientName = await tmux.currentClientName()
-  if (clientName.length === 0) {
-    throw new Error("category use requires tmux client context")
-  }
+  const clientName = await requireCurrentClientName({
+    tmux,
+    errorMessage: "category use requires tmux client context",
+  })
 
   const normalized = ensureKnownCategory({ config, categoryName })
   await tmux.setClientOption(clientName, CURRENT_CATEGORY_OPTION, normalized)
   return normalized
+}
+
+export const getCategoryLastActiveSession = async ({
+  tmux,
+  categoryName,
+}: {
+  readonly tmux: Pick<TmuxClient, "currentClientName" | "showClientOption">
+  readonly categoryName: string
+}): Promise<string | null> => {
+  const clientName = await requireCurrentClientName({
+    tmux,
+    errorMessage: "last active session requires tmux client context",
+  })
+  const state = await readCategoryLastSessionsState({
+    tmux,
+    clientName,
+  })
+  return state[categoryName] ?? null
+}
+
+export const rememberCategoryLastActiveSession = async ({
+  tmux,
+  categoryName,
+  sessionName,
+}: {
+  readonly tmux: Pick<
+    TmuxClient,
+    "currentClientName" | "showClientOption" | "setClientOption"
+  >
+  readonly categoryName: string
+  readonly sessionName: string
+}): Promise<void> => {
+  const clientName = await requireCurrentClientName({
+    tmux,
+    errorMessage: "remember session requires tmux client context",
+  })
+  const state = await readCategoryLastSessionsState({
+    tmux,
+    clientName,
+  })
+  await writeCategoryLastSessionsState({
+    tmux,
+    clientName,
+    state: {
+      ...state,
+      [categoryName]: sessionName,
+    },
+  })
 }
 
 export const resolveEffectiveSessionCategory = ({
@@ -130,6 +264,80 @@ export const getSessionsInCategory = ({
   )
 }
 
+export const resolveSessionCategoryByName = async ({
+  tmux,
+  config,
+  sessionName,
+  homeDirectory,
+  ghqRoot,
+}: {
+  readonly tmux: Pick<TmuxClient, "listSessionDetails">
+  readonly config: ResolvedConfig
+  readonly sessionName: string
+  readonly homeDirectory: string
+  readonly ghqRoot?: string | null
+}): Promise<string> => {
+  const session = (await tmux.listSessionDetails()).find(
+    (candidate) => candidate.name === sessionName,
+  )
+  if (!session) {
+    throw new Error(`session not found: ${sessionName}`)
+  }
+
+  return resolveEffectiveSessionCategory({
+    session,
+    config,
+    homeDirectory,
+    ghqRoot,
+  })
+}
+
+export const switchClientAndRememberSession = async ({
+  tmux,
+  config,
+  sessionName,
+  categoryName,
+  homeDirectory,
+  ghqRoot,
+}: {
+  readonly tmux: Pick<
+    TmuxClient,
+    | "currentClientName"
+    | "showClientOption"
+    | "setClientOption"
+    | "switchClient"
+    | "listSessionDetails"
+  >
+  readonly config: ResolvedConfig
+  readonly sessionName: string
+  readonly categoryName?: string
+  readonly homeDirectory: string
+  readonly ghqRoot?: string | null
+}): Promise<string> => {
+  const resolvedCategory =
+    categoryName ??
+    (await resolveSessionCategoryByName({
+      tmux,
+      config,
+      sessionName,
+      homeDirectory,
+      ghqRoot,
+    }))
+
+  await tmux.switchClient(sessionName)
+  await setCurrentCategory({
+    tmux,
+    config,
+    categoryName: resolvedCategory,
+  })
+  await rememberCategoryLastActiveSession({
+    tmux,
+    categoryName: resolvedCategory,
+    sessionName,
+  })
+  return sessionName
+}
+
 export const cycleSessionInCurrentCategory = async ({
   tmux,
   config,
@@ -141,6 +349,7 @@ export const cycleSessionInCurrentCategory = async ({
     TmuxClient,
     | "currentClientName"
     | "showClientOption"
+    | "setClientOption"
     | "listSessionDetails"
     | "currentSession"
     | "switchClient"
@@ -173,10 +382,85 @@ export const cycleSessionInCurrentCategory = async ({
       : (baseIndex - 1 + names.length) % names.length
   const target = names[nextIndex] ?? null
   if (target === null || target === currentSession) {
+    if (typeof target === "string") {
+      await rememberCategoryLastActiveSession({
+        tmux,
+        categoryName: currentCategory,
+        sessionName: target,
+      })
+    }
     return target
   }
 
-  await tmux.switchClient(target)
+  await switchClientAndRememberSession({
+    tmux,
+    config,
+    sessionName: target,
+    categoryName: currentCategory,
+    homeDirectory,
+    ghqRoot,
+  })
+  return target
+}
+
+export const useCategoryAndSwitchToLastSession = async ({
+  tmux,
+  config,
+  categoryName,
+  homeDirectory,
+  ghqRoot,
+}: {
+  readonly tmux: Pick<
+    TmuxClient,
+    | "currentClientName"
+    | "showClientOption"
+    | "setClientOption"
+    | "listSessionDetails"
+    | "switchClient"
+  >
+  readonly config: ResolvedConfig
+  readonly categoryName: string
+  readonly homeDirectory: string
+  readonly ghqRoot?: string | null
+}): Promise<string | null> => {
+  const normalizedCategory = await setCurrentCategory({
+    tmux,
+    config,
+    categoryName,
+  })
+  const sessions = getSessionsInCategory({
+    sessions: await tmux.listSessionDetails(),
+    categoryName: normalizedCategory,
+    config,
+    homeDirectory,
+    ghqRoot,
+  })
+
+  if (sessions.length === 0) {
+    return null
+  }
+
+  const lastActiveSession = await getCategoryLastActiveSession({
+    tmux,
+    categoryName: normalizedCategory,
+  })
+  const target =
+    sessions.find((session) => session.name === lastActiveSession)?.name ??
+    sessions[0]?.name ??
+    null
+
+  if (target === null) {
+    return null
+  }
+
+  await switchClientAndRememberSession({
+    tmux,
+    config,
+    sessionName: target,
+    categoryName: normalizedCategory,
+    homeDirectory,
+    ghqRoot,
+  })
   return target
 }
 

@@ -2,6 +2,7 @@ import chalk from "chalk"
 import {
   getCurrentCategory,
   resolveEffectiveSessionCategory,
+  switchClientAndRememberSession,
 } from "../../categories/state"
 import { resolveGhqRoot } from "../../categories/runtime"
 import { loadConfig } from "../../config/loader"
@@ -734,9 +735,18 @@ const runSelection = async ({
     return
   }
 
+  const homeDirectory = env.HOME ?? process.env.HOME ?? ""
+  const ghqRoot = await resolveGhqRoot({ env, runner })
+
   if (parsed.action === "session") {
     if (typeof env.TMUX === "string" && env.TMUX.length > 0) {
-      await tmux.switchClient(parsed.name)
+      await switchClientAndRememberSession({
+        tmux,
+        config,
+        sessionName: parsed.name,
+        homeDirectory,
+        ghqRoot,
+      })
     } else {
       await tmux.attachSession(parsed.name, true)
     }
@@ -747,7 +757,13 @@ const runSelection = async ({
     const sessionName =
       splitWindowTarget(parsed.name)?.sessionName ?? parsed.name
     if (typeof env.TMUX === "string" && env.TMUX.length > 0) {
-      await tmux.switchClient(sessionName)
+      await switchClientAndRememberSession({
+        tmux,
+        config,
+        sessionName,
+        homeDirectory,
+        ghqRoot,
+      })
       await tmux.selectWindow(parsed.name)
       return
     }

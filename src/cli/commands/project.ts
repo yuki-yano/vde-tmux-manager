@@ -34,6 +34,9 @@ export const runProject = async (
       | "listSessionDetails"
       | "newSessionDetachedNamed"
       | "newSessionInteractiveNamed"
+      | "currentClientName"
+      | "showClientOption"
+      | "setClientOption"
       | "setSessionOption"
       | "switchClient"
     >

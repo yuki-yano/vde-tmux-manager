@@ -2,12 +2,16 @@ import { DEFAULT_CONFIG } from "../config/defaults"
 import type { SessionDetails } from "../tmux/parse"
 import {
   cycleSessionInCurrentCategory,
+  getCategoryLastActiveSession,
   getCurrentCategory,
   getSessionsInCategory,
+  rememberCategoryLastActiveSession,
   refreshSessionCategories,
   resolveEffectiveSessionCategory,
+  switchClientAndRememberSession,
   setCurrentCategory,
   setSessionCategoryOverride,
+  useCategoryAndSwitchToLastSession,
 } from "./state"
 
 const createSession = (
@@ -80,6 +84,103 @@ describe("current category", () => {
       "work",
     )
   })
+
+  it("switches to the remembered last active session when using a category", async () => {
+    const tmux = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      setClientOption: vi.fn(async () => undefined),
+      showClientOption: vi.fn(async (target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return JSON.stringify({
+            work: "repo-b",
+          })
+        }
+        return ""
+      }),
+      listSessionDetails: vi.fn(async () => [
+        createSession({
+          id: "$1",
+          name: "repo-a",
+          projectPath: "/Users/test/ghq/github.com/company/repo-a",
+        }),
+        createSession({
+          id: "$2",
+          name: "repo-b",
+          projectPath: "/Users/test/ghq/github.com/company/repo-b",
+        }),
+      ]),
+      switchClient: vi.fn(async () => undefined),
+    }
+
+    const target = await useCategoryAndSwitchToLastSession({
+      tmux: tmux as never,
+      config,
+      categoryName: "work",
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(target).toBe("repo-b")
+    expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
+  })
+
+  it("falls back to the first session when no remembered session exists", async () => {
+    const tmux = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      setClientOption: vi.fn(async () => undefined),
+      showClientOption: vi.fn(async () => ""),
+      listSessionDetails: vi.fn(async () => [
+        createSession({
+          id: "$1",
+          name: "repo-a",
+          projectPath: "/Users/test/ghq/github.com/company/repo-a",
+        }),
+        createSession({
+          id: "$2",
+          name: "repo-b",
+          projectPath: "/Users/test/ghq/github.com/company/repo-b",
+        }),
+      ]),
+      switchClient: vi.fn(async () => undefined),
+    }
+
+    const target = await useCategoryAndSwitchToLastSession({
+      tmux: tmux as never,
+      config,
+      categoryName: "work",
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(target).toBe("repo-a")
+    expect(tmux.switchClient).toHaveBeenCalledWith("repo-a")
+  })
+
+  it("switches only the category when the category has no sessions", async () => {
+    const tmux = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      setClientOption: vi.fn(async () => undefined),
+      showClientOption: vi.fn(async () => ""),
+      listSessionDetails: vi.fn(async () => []),
+      switchClient: vi.fn(async () => undefined),
+    }
+
+    const target = await useCategoryAndSwitchToLastSession({
+      tmux: tmux as never,
+      config,
+      categoryName: "work",
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(target).toBeNull()
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "current_category",
+      "work",
+    )
+    expect(tmux.switchClient).not.toHaveBeenCalled()
+  })
 })
 
 describe("resolveEffectiveSessionCategory", () => {
@@ -146,7 +247,13 @@ describe("cycleSessionInCurrentCategory", () => {
   it("cycles only within the current category", async () => {
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
-      showClientOption: vi.fn(async () => "work"),
+      showClientOption: vi.fn(async (_target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return ""
+        }
+        return "work"
+      }),
+      setClientOption: vi.fn(async () => undefined),
       listSessionDetails: vi.fn(async () => [
         createSession({
           id: "$1",
@@ -177,6 +284,149 @@ describe("cycleSessionInCurrentCategory", () => {
     })
 
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "category_last_sessions",
+      JSON.stringify({
+        work: "repo-b",
+      }),
+    )
+  })
+})
+
+describe("client-scoped last active sessions", () => {
+  it("keeps last active session state separate per client", async () => {
+    const clientState = new Map<string, string>()
+    const tmuxClientA = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async (target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return clientState.get(target) ?? ""
+        }
+        return ""
+      }),
+      setClientOption: vi.fn(
+        async (target: string, option: string, value: string) => {
+          if (option === "category_last_sessions") {
+            clientState.set(target, value)
+          }
+        },
+      ),
+    }
+    const tmuxClientB = {
+      currentClientName: vi.fn(async () => "/dev/ttys002"),
+      showClientOption: vi.fn(async (target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return clientState.get(target) ?? ""
+        }
+        return ""
+      }),
+      setClientOption: vi.fn(
+        async (target: string, option: string, value: string) => {
+          if (option === "category_last_sessions") {
+            clientState.set(target, value)
+          }
+        },
+      ),
+    }
+
+    await rememberCategoryLastActiveSession({
+      tmux: tmuxClientA as never,
+      categoryName: "private",
+      sessionName: "dotfiles",
+    })
+    await rememberCategoryLastActiveSession({
+      tmux: tmuxClientB as never,
+      categoryName: "private",
+      sessionName: "local-dev",
+    })
+
+    await expect(
+      getCategoryLastActiveSession({
+        tmux: tmuxClientA as never,
+        categoryName: "private",
+      }),
+    ).resolves.toBe("dotfiles")
+    await expect(
+      getCategoryLastActiveSession({
+        tmux: tmuxClientB as never,
+        categoryName: "private",
+      }),
+    ).resolves.toBe("local-dev")
+  })
+
+  it("falls back when remembered session no longer exists", async () => {
+    const tmux = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      setClientOption: vi.fn(async () => undefined),
+      showClientOption: vi.fn(async (_target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return JSON.stringify({
+            work: "deleted-repo",
+          })
+        }
+        return ""
+      }),
+      listSessionDetails: vi.fn(async () => [
+        createSession({
+          id: "$1",
+          name: "repo-a",
+          projectPath: "/Users/test/ghq/github.com/company/repo-a",
+        }),
+      ]),
+      switchClient: vi.fn(async () => undefined),
+    }
+
+    const target = await useCategoryAndSwitchToLastSession({
+      tmux: tmux as never,
+      config,
+      categoryName: "work",
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(target).toBe("repo-a")
+    expect(tmux.switchClient).toHaveBeenCalledWith("repo-a")
+  })
+})
+
+describe("switchClientAndRememberSession", () => {
+  it("updates current category and remembered session after a direct switch", async () => {
+    const tmux = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      setClientOption: vi.fn(async () => undefined),
+      showClientOption: vi.fn(async () => ""),
+      switchClient: vi.fn(async () => undefined),
+      listSessionDetails: vi.fn(async () => [
+        createSession({
+          id: "$1",
+          name: "private-repo",
+          projectPath: "/tmp/private-repo",
+        }),
+      ]),
+    }
+
+    await switchClientAndRememberSession({
+      tmux: tmux as never,
+      config,
+      sessionName: "private-repo",
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(tmux.switchClient).toHaveBeenCalledWith("private-repo")
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "current_category",
+      "private",
+    )
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "category_last_sessions",
+      JSON.stringify({
+        private: "private-repo",
+      }),
+    )
   })
 })
 

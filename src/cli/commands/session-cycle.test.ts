@@ -21,7 +21,13 @@ describe("runSessionCycle", () => {
 
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
-      showClientOption: vi.fn(async () => "work"),
+      showClientOption: vi.fn(async (_target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return ""
+        }
+        return "work"
+      }),
+      setClientOption: vi.fn(async () => undefined),
       listSessionDetails: vi.fn(async () => [
         {
           id: "$1",
@@ -76,5 +82,12 @@ describe("runSessionCycle", () => {
 
     expect(exitCode).toBe(0)
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "category_last_sessions",
+      JSON.stringify({
+        work: "repo-b",
+      }),
+    )
   })
 })

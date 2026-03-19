@@ -1,5 +1,6 @@
 import { homedir } from "node:os"
 import {
+  switchClientAndRememberSession,
   getSessionsInCategory,
   getCurrentCategory,
 } from "../../categories/state"
@@ -107,7 +108,7 @@ export type RunStatuslineSessionsDeps = {
     | "currentClientName"
     | "showClientOption"
   > &
-    Partial<Pick<TmuxClient, "switchClient">>
+    Partial<Pick<TmuxClient, "switchClient" | "setClientOption">>
   readonly loadConfigFn?: typeof loadConfig
   readonly env?: NodeJS.ProcessEnv
 }
@@ -201,8 +202,25 @@ export const runStatuslineSessions = async (
     if (typeof tmux.switchClient !== "function") {
       throw new Error("tmux.switchClient is required for switch command")
     }
+    if (typeof tmux.setClientOption !== "function") {
+      throw new Error("tmux.setClientOption is required for switch command")
+    }
 
-    await tmux.switchClient(targetSessionName)
+    await switchClientAndRememberSession({
+      tmux: tmux as Pick<
+        TmuxClient,
+        | "currentClientName"
+        | "showClientOption"
+        | "setClientOption"
+        | "switchClient"
+        | "listSessionDetails"
+      >,
+      config,
+      sessionName: targetSessionName,
+      categoryName: currentCategory,
+      homeDirectory: env.HOME ?? homedir(),
+      ghqRoot: await resolveGhqRoot({ env }),
+    })
     return EXIT_CODE_OK
   }
 

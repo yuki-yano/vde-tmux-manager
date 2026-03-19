@@ -32,6 +32,7 @@ export const runSessionCycle = async (
       TmuxClient,
       | "currentClientName"
       | "showClientOption"
+      | "setClientOption"
       | "listSessionDetails"
       | "currentSession"
       | "switchClient"

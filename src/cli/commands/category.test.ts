@@ -21,7 +21,36 @@ describe("runCategory", () => {
 
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async (_target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return JSON.stringify({
+            work: "repo-b",
+          })
+        }
+        return ""
+      }),
       setClientOption: vi.fn(async () => undefined),
+      listSessionDetails: vi.fn(async () => [
+        {
+          id: "$1",
+          name: "repo-a",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/repo-a",
+          categoryOverride: "",
+        },
+        {
+          id: "$2",
+          name: "repo-b",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/repo-b",
+          categoryOverride: "",
+        },
+      ]),
+      switchClient: vi.fn(async () => undefined),
     }
 
     const loadConfigFn = vi.fn(async () => ({
@@ -49,6 +78,10 @@ describe("runCategory", () => {
       stderr: stderr.write,
       tmux: tmux as never,
       loadConfigFn,
+      env: {
+        HOME: "/Users/test",
+        GHQ_ROOT: "/Users/test/ghq",
+      },
     })
 
     expect(exitCode).toBe(0)
@@ -57,6 +90,7 @@ describe("runCategory", () => {
       "current_category",
       "work",
     )
+    expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
     expect(stderr.lines).toHaveLength(0)
   })
 })

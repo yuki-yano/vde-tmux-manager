@@ -1,4 +1,6 @@
-import { setCurrentCategory } from "../../categories/state"
+import { homedir } from "node:os"
+import { resolveGhqRoot } from "../../categories/runtime"
+import { useCategoryAndSwitchToLastSession } from "../../categories/state"
 import { loadConfig } from "../../config/loader"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 
@@ -21,12 +23,21 @@ export const runCategory = async (
     stderr,
     tmux = createTmuxClient(),
     loadConfigFn = loadConfig,
+    env = process.env,
   }: {
     readonly programName: string
     readonly stdout: (line: string) => void
     readonly stderr: (line: string) => void
-    readonly tmux?: Pick<TmuxClient, "currentClientName" | "setClientOption">
+    readonly tmux?: Pick<
+      TmuxClient,
+      | "currentClientName"
+      | "setClientOption"
+      | "showClientOption"
+      | "listSessionDetails"
+      | "switchClient"
+    >
     readonly loadConfigFn?: typeof loadConfig
+    readonly env?: NodeJS.ProcessEnv
   },
 ): Promise<number> => {
   if (args[0] !== "use" || typeof args[1] !== "string" || args.length !== 2) {
@@ -35,10 +46,12 @@ export const runCategory = async (
   }
 
   const { config } = await loadConfigFn()
-  await setCurrentCategory({
+  await useCategoryAndSwitchToLastSession({
     tmux,
     config,
     categoryName: args[1],
+    homeDirectory: env.HOME ?? homedir(),
+    ghqRoot: await resolveGhqRoot({ env }),
   })
   return EXIT_CODE_OK
 }

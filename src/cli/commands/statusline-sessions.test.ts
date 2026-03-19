@@ -279,7 +279,13 @@ describe("runStatuslineSessions", () => {
       ]),
       currentSession: vi.fn(async () => "dev"),
       currentClientName: vi.fn(async () => "/dev/ttys001"),
-      showClientOption: vi.fn(async () => "work"),
+      showClientOption: vi.fn(async (_target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return ""
+        }
+        return "work"
+      }),
+      setClientOption: vi.fn(async () => undefined),
       switchClient: vi.fn(async () => undefined),
     } as const
 
@@ -321,6 +327,13 @@ describe("runStatuslineSessions", () => {
 
     expect(exitCode).toBe(0)
     expect(tmux.switchClient).toHaveBeenCalledWith("work")
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "category_last_sessions",
+      JSON.stringify({
+        work: "work",
+      }),
+    )
     expect(stdout.lines).toHaveLength(0)
     expect(stderr.lines).toHaveLength(0)
   })

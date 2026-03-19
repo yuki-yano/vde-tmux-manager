@@ -170,6 +170,8 @@ bind-key C-w run-shell 'vtm category use work'
 bind-key C-p run-shell 'vtm category use private'
 ```
 
+`vtm category use <name>` は、その tmux client の current category を更新したあと、その client でその category 内で最後に見ていた session へ戻ります。記録がなければ category 内の先頭 session に移動し、category に session がなければ category だけ切り替えます。
+
 current category 内だけで session を巡回する:
 
 ```tmux
@@ -209,6 +211,11 @@ session category を明示 override し、あとでまとめて再計算する:
 vtm session set-category dotfiles private
 vtm sessions refresh-category
 ```
+
+内部 state:
+
+- `@current_category`: tmux client ごとの current category
+- `@category_last_sessions`: tmux client ごとの `category -> last active session` JSON
 
 kill 操作に絞ったシンプルな右クリックメニュー:
 

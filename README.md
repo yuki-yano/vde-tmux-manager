@@ -170,6 +170,8 @@ bind-key C-w run-shell 'vtm category use work'
 bind-key C-p run-shell 'vtm category use private'
 ```
 
+`vtm category use <name>` changes the current category for that tmux client, then restores the last active session remembered for that client and category. If no remembered session exists, it switches to the first session in the category. If the category has no sessions, only the category is updated.
+
 Cycle sessions only inside the current category:
 
 ```tmux
@@ -209,6 +211,11 @@ Explicitly override a session category and refresh stored categories later:
 vtm session set-category dotfiles private
 vtm sessions refresh-category
 ```
+
+Internal client state:
+
+- `@current_category`: current category for the tmux client
+- `@category_last_sessions`: JSON map of `category -> last active session` scoped to the tmux client
 
 Simple right-click menu for kill actions:
 
