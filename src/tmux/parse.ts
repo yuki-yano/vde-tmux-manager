@@ -9,6 +9,13 @@ export type SessionIdentity = {
   readonly name: string
 }
 
+export type SessionDetails = SessionMeta & {
+  readonly id: string
+  readonly category: string
+  readonly projectPath: string
+  readonly categoryOverride: string
+}
+
 export type WindowInfo = {
   readonly index: string
   readonly panes: number
@@ -75,6 +82,24 @@ export const parseSessionIdentityList = (output: string): SessionIdentity[] => {
       return {
         id: (id ?? "").trim(),
         name: (name ?? "").trim(),
+      }
+    })
+    .filter((row) => row.id.length > 0 && row.name.length > 0)
+}
+
+export const parseSessionDetailsList = (output: string): SessionDetails[] => {
+  return splitNonEmptyLines(output)
+    .map((line) => {
+      const [id, name, attached, activity, category, projectPath, override] =
+        line.split("\t")
+      return {
+        id: (id ?? "").trim(),
+        name: (name ?? "").trim(),
+        attachedClients: parseIntSafe(attached, 0),
+        lastActivity: parseIntSafe(activity, 0),
+        category: (category ?? "").trim(),
+        projectPath: (projectPath ?? "").trim(),
+        categoryOverride: (override ?? "").trim(),
       }
     })
     .filter((row) => row.id.length > 0 && row.name.length > 0)

@@ -7,10 +7,14 @@
 ## Features
 
 - Interactive tmux session manager with fzf
+- Category-aware tmux session grouping based on project paths
 - Clean kill flows for sessions/windows/panes/server targets
+- Category-scoped session cycling and statusline switching
 - tmux statusline session segment renderer
+- tmux statusline current-category segment renderer
 - Clickable statusline session segments for session switching
 - YAML-based configuration
+- JSON Schema for YAML completion and validation
 - Two executable names: `vde-tmux-manager` and `vtm`
 - Configurable statusline fonts (prefix/suffix glyphs)
 
@@ -43,6 +47,13 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager --popup`
 - `vtm session-manager kill-window <target>`
 - `vtm session-manager kill-pane <target>`
+- `vtm project switch <path>`
+- `vtm category use <name>`
+- `vtm session-cycle next`
+- `vtm session-cycle prev`
+- `vtm session set-category <session> <category>`
+- `vtm sessions refresh-category`
+- `vtm statusline-category`
 - `vtm statusline-sessions`
 - `vtm statusline-sessions switch 2`
 - `vtm --help`
@@ -70,6 +81,7 @@ Configuration file path:
 Example:
 
 ```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/yuki-yano/vde-tmux-manager/refs/heads/main/schemas/config.schema.json
 sessionManager:
   popup:
     enabled: true
@@ -101,7 +113,41 @@ statuslineSessions:
     currentSuffix: ""
     otherPrefix: ""
     otherSuffix: ""
+
+categories:
+  defaultCategory: public
+  rules:
+    - category: work
+      ghqPatterns:
+        - github.com/xxx-company/*
+        - github.com/xxx-company/**
+    - category: private
+      pathPatterns:
+        - ~/dotfiles
+        - ~/private/**
+        - /tmp/**
+    - category: oss
+      ghqPatterns:
+        - github.com/yuki-yano/**
+  sessionNameRules:
+    - category: private
+      patterns:
+        - dotfiles
+        - local-*
 ```
+
+Category resolution order:
+
+1. Session override metadata (`@category_override`)
+2. Path rules
+3. Session name rules
+4. `defaultCategory`
+
+Path rules use first-match-wins. For GHQ projects, matching is done against the GHQ-root-relative path such as `github.com/org/repo`. For non-GHQ projects, matching is done against the normalized absolute path, with `~` expanded to `HOME`.
+
+Schema file:
+
+- [`schemas/config.schema.json`](./schemas/config.schema.json)
 
 ## tmux Integration
 
@@ -117,9 +163,24 @@ Open session manager:
 bind-key C-f run-shell 'vtm session-manager'
 ```
 
+Switch the current tmux client category:
+
+```tmux
+bind-key C-w run-shell 'vtm category use work'
+bind-key C-p run-shell 'vtm category use private'
+```
+
+Cycle sessions only inside the current category:
+
+```tmux
+bind-key -n M-n run-shell 'vtm session-cycle next'
+bind-key -n M-p run-shell 'vtm session-cycle prev'
+```
+
 Use in statusline:
 
 ```tmux
+set -g status-left '#(vtm statusline-category) '
 set -g status-right '#(vtm statusline-sessions) #[fg=colour250]| %Y-%m-%d %H:%M'
 ```
 
@@ -133,6 +194,20 @@ Switch to a session by the displayed 1-based index:
 
 ```bash
 vtm statusline-sessions switch 2
+```
+
+Create or reuse a session from a project path and attach/switch to it:
+
+```bash
+vtm project switch ~/ghq/github.com/xxx-company/foo
+vtm project switch /tmp/playground-repo
+```
+
+Explicitly override a session category and refresh stored categories later:
+
+```bash
+vtm session set-category dotfiles private
+vtm sessions refresh-category
 ```
 
 Simple right-click menu for kill actions:
@@ -150,3 +225,4 @@ This replaces your existing right-click menu with a minimal kill-focused menu.
 - If `session-manager` does not open, verify `tmux` and `fzf` are available in `PATH`.
 - If clean kill behavior is incomplete, verify `ps` and `kill` are available.
 - If repo metadata is empty in preview, verify the pane path is inside a Git repository.
+- If category matching looks wrong, verify `GHQ_ROOT` / `ghq root`, then run `vtm sessions refresh-category`.

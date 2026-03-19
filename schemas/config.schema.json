@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/yuki-yano/vde-tmux-manager/refs/heads/main/schemas/config.schema.json",
+  "title": "vde-tmux-manager config",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sessionManager": {
+      "type": "object",
+      "description": "Settings for the interactive tmux session manager.",
+      "additionalProperties": false,
+      "properties": {
+        "popup": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Open the session manager in a tmux popup when running inside tmux."
+            },
+            "width": {
+              "type": "string",
+              "description": "Popup width as a number or percentage string.",
+              "pattern": "^\\d+%?$"
+            },
+            "height": {
+              "type": "string",
+              "description": "Popup height as a number or percentage string.",
+              "pattern": "^\\d+%?$"
+            }
+          }
+        },
+        "fzf": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Prompt string shown by fzf."
+            },
+            "border": {
+              "type": "string",
+              "minLength": 1,
+              "description": "fzf border style."
+            },
+            "previewWidth": {
+              "type": "string",
+              "pattern": "^\\d+%?$",
+              "description": "Preview width as a number or percentage string."
+            },
+            "previewRefreshMs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Preview refresh interval in milliseconds."
+            }
+          }
+        },
+        "preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sessionCaptureLines": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Fallback number of lines captured for session previews."
+            },
+            "paneCaptureLines": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Fallback number of lines captured for pane previews."
+            }
+          }
+        },
+        "kill": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sendCtrlC": {
+              "type": "boolean",
+              "description": "Send Ctrl-C before TERM/KILL when cleaning up tmux targets."
+            },
+            "termWaitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Wait after TERM in milliseconds."
+            },
+            "killWaitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Wait after KILL in milliseconds."
+            }
+          }
+        }
+      }
+    },
+    "statuslineSessions": {
+      "type": "object",
+      "description": "Rendering options for the tmux statusline session segment.",
+      "additionalProperties": false,
+      "properties": {
+        "showIndex": {
+          "type": "boolean",
+          "description": "Show 1-based indexes before session names."
+        },
+        "colors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "baseFg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Foreground color for the base segment."
+            },
+            "baseBg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Background color for the base segment."
+            },
+            "currentFg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Foreground color for the current session."
+            },
+            "currentBg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Background color for the current session."
+            },
+            "otherFg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Foreground color for non-current sessions."
+            }
+          }
+        },
+        "fonts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "currentPrefix": {
+              "type": "string",
+              "description": "Prefix glyph for the current session."
+            },
+            "currentSuffix": {
+              "type": "string",
+              "description": "Suffix glyph for the current session."
+            },
+            "otherPrefix": {
+              "type": "string",
+              "description": "Prefix glyph for non-current sessions."
+            },
+            "otherSuffix": {
+              "type": "string",
+              "description": "Suffix glyph for non-current sessions."
+            }
+          }
+        }
+      }
+    },
+    "categories": {
+      "type": "object",
+      "description": "Category rules used to group tmux sessions by project path or session name.",
+      "additionalProperties": false,
+      "properties": {
+        "defaultCategory": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fallback category when no override, path rule, or session name rule matches."
+        },
+        "rules": {
+          "type": "array",
+          "description": "Path-based rules evaluated from top to bottom. First match wins.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["category"],
+            "properties": {
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Category name applied when this rule matches."
+              },
+              "ghqPatterns": {
+                "type": "array",
+                "description": "Glob patterns matched against a GHQ-root-relative path such as github.com/org/repo.",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "pathPatterns": {
+                "type": "array",
+                "description": "Glob patterns matched against an absolute normalized path. `~` is expanded to HOME before matching.",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "anyOf": [
+              { "required": ["ghqPatterns"] },
+              { "required": ["pathPatterns"] }
+            ]
+          }
+        },
+        "sessionNameRules": {
+          "type": "array",
+          "description": "Exception rules evaluated from top to bottom when path-based matching did not apply.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["category", "patterns"],
+            "properties": {
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Category name applied when the session name matches."
+              },
+              "patterns": {
+                "type": "array",
+                "description": "Glob patterns matched against the tmux session name.",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -46,6 +46,10 @@ describe("createCli", () => {
     expect(exitCode).toBe(0)
     expect(stdout.lines.join("\n")).toContain("Usage: vtm <command>")
     expect(stdout.lines.join("\n")).toContain("session-manager")
+    expect(stdout.lines.join("\n")).toContain("project")
+    expect(stdout.lines.join("\n")).toContain("category")
+    expect(stdout.lines.join("\n")).toContain("session-cycle")
+    expect(stdout.lines.join("\n")).toContain("statusline-category")
     expect(stdout.lines.join("\n")).toContain("statusline-sessions")
     expect(stderr.lines).toHaveLength(0)
   })
@@ -107,6 +111,22 @@ describe("createCli", () => {
 
     expect(exitCode).toBe(0)
     expect(stdout.lines.join("\n")).toContain("Usage: vtm statusline-sessions")
+  })
+
+  it("shows project help", async () => {
+    const stderr = createLineCollector()
+
+    const cli = createCli({
+      programName: "vtm",
+      stderr: stderr.write,
+    })
+
+    const exitCode = await cli.run(["project"])
+
+    expect(exitCode).toBe(2)
+    expect(stderr.lines.join("\n")).toContain(
+      "Usage: vtm project switch <path>",
+    )
   })
 
   it("returns an error for an unknown subcommand", async () => {

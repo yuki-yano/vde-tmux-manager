@@ -108,15 +108,51 @@ describe("runStatuslineSessions", () => {
     const stderr = createCollector()
 
     const tmux = {
-      listSessionIdentities: vi.fn(async () => [
-        { id: "$1", name: "dev" },
-        { id: "$2", name: "work" },
+      listSessionDetails: vi.fn(async () => [
+        {
+          id: "$1",
+          name: "dev",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/dev",
+          categoryOverride: "",
+        },
+        {
+          id: "$2",
+          name: "personal",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "private",
+          projectPath: "/tmp/personal",
+          categoryOverride: "",
+        },
       ]),
       currentSession: vi.fn(async () => "dev"),
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async () => "work"),
     } as const
 
     const loadConfigFn = vi.fn(async () => ({
-      config: DEFAULT_CONFIG,
+      config: {
+        ...DEFAULT_CONFIG,
+        categories: {
+          defaultCategory: "public",
+          rules: [
+            {
+              category: "work",
+              ghqPatterns: ["github.com/company/**"],
+              pathPatterns: [],
+            },
+            {
+              category: "private",
+              ghqPatterns: [],
+              pathPatterns: ["/tmp/**"],
+            },
+          ],
+          sessionNameRules: [],
+        },
+      },
       path: "/tmp/config.yaml",
       loaded: false,
     }))
@@ -127,10 +163,15 @@ describe("runStatuslineSessions", () => {
       stderr: stderr.write,
       tmux,
       loadConfigFn,
+      env: {
+        HOME: "/Users/test",
+        GHQ_ROOT: "/Users/test/ghq",
+      },
     })
 
     expect(exitCode).toBe(0)
     expect(stdout.lines[0]).toContain("#[range=session|$1]")
+    expect(stdout.lines[0]).not.toContain("personal")
     expect(stdout.lines[0]).toContain("#[norange]")
     expect(stderr.lines).toHaveLength(0)
   })
@@ -140,15 +181,46 @@ describe("runStatuslineSessions", () => {
     const stderr = createCollector()
 
     const tmux = {
-      listSessionIdentities: vi.fn(async () => [
-        { id: "$1", name: "dev" },
-        { id: "$2", name: "work" },
+      listSessionDetails: vi.fn(async () => [
+        {
+          id: "$1",
+          name: "dev",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/dev",
+          categoryOverride: "",
+        },
+        {
+          id: "$2",
+          name: "work",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/work",
+          categoryOverride: "",
+        },
       ]),
       currentSession: vi.fn(async () => "dev"),
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async () => "work"),
     } as const
 
     const loadConfigFn = vi.fn(async () => ({
-      config: DEFAULT_CONFIG,
+      config: {
+        ...DEFAULT_CONFIG,
+        categories: {
+          defaultCategory: "public",
+          rules: [
+            {
+              category: "work",
+              ghqPatterns: ["github.com/company/**"],
+              pathPatterns: [],
+            },
+          ],
+          sessionNameRules: [],
+        },
+      },
       path: "/tmp/config.yaml",
       loaded: false,
     }))
@@ -159,6 +231,10 @@ describe("runStatuslineSessions", () => {
       stderr: stderr.write,
       tmux,
       loadConfigFn,
+      env: {
+        HOME: "/Users/test",
+        GHQ_ROOT: "/Users/test/ghq",
+      },
     })
 
     expect(exitCode).toBe(0)
@@ -172,19 +248,75 @@ describe("runStatuslineSessions", () => {
     const stderr = createCollector()
 
     const tmux = {
-      listSessionIdentities: vi.fn(async () => [
-        { id: "$1", name: "dev" },
-        { id: "$2", name: "work" },
+      listSessionDetails: vi.fn(async () => [
+        {
+          id: "$1",
+          name: "dev",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/dev",
+          categoryOverride: "",
+        },
+        {
+          id: "$2",
+          name: "other",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "private",
+          projectPath: "/tmp/other",
+          categoryOverride: "",
+        },
+        {
+          id: "$3",
+          name: "work",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/work",
+          categoryOverride: "",
+        },
       ]),
       currentSession: vi.fn(async () => "dev"),
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async () => "work"),
       switchClient: vi.fn(async () => undefined),
     } as const
+
+    const loadConfigFn = vi.fn(async () => ({
+      config: {
+        ...DEFAULT_CONFIG,
+        categories: {
+          defaultCategory: "public",
+          rules: [
+            {
+              category: "work",
+              ghqPatterns: ["github.com/company/**"],
+              pathPatterns: [],
+            },
+            {
+              category: "private",
+              ghqPatterns: [],
+              pathPatterns: ["/tmp/**"],
+            },
+          ],
+          sessionNameRules: [],
+        },
+      },
+      path: "/tmp/config.yaml",
+      loaded: false,
+    }))
 
     const exitCode = await runStatuslineSessions(["switch", "2"], {
       programName: "vtm",
       stdout: stdout.write,
       stderr: stderr.write,
       tmux,
+      loadConfigFn,
+      env: {
+        HOME: "/Users/test",
+        GHQ_ROOT: "/Users/test/ghq",
+      },
     })
 
     expect(exitCode).toBe(0)
@@ -198,8 +330,10 @@ describe("runStatuslineSessions", () => {
     const stderr = createCollector()
 
     const tmux = {
-      listSessionIdentities: vi.fn(async () => []),
+      listSessionDetails: vi.fn(async () => []),
       currentSession: vi.fn(async () => "dev"),
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async () => "work"),
       switchClient: vi.fn(async () => undefined),
     } as const
 
@@ -222,16 +356,52 @@ describe("runStatuslineSessions", () => {
     const stderr = createCollector()
 
     const tmux = {
-      listSessionIdentities: vi.fn(async () => [{ id: "$1", name: "dev" }]),
+      listSessionDetails: vi.fn(async () => [
+        {
+          id: "$1",
+          name: "dev",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/dev",
+          categoryOverride: "",
+        },
+      ]),
       currentSession: vi.fn(async () => "dev"),
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async () => "work"),
       switchClient: vi.fn(async () => undefined),
     } as const
+
+    const loadConfigFn = vi.fn(async () => ({
+      config: {
+        ...DEFAULT_CONFIG,
+        categories: {
+          defaultCategory: "public",
+          rules: [
+            {
+              category: "work",
+              ghqPatterns: ["github.com/company/**"],
+              pathPatterns: [],
+            },
+          ],
+          sessionNameRules: [],
+        },
+      },
+      path: "/tmp/config.yaml",
+      loaded: false,
+    }))
 
     const exitCode = await runStatuslineSessions(["switch", "2"], {
       programName: "vtm",
       stdout: stdout.write,
       stderr: stderr.write,
       tmux,
+      loadConfigFn,
+      env: {
+        HOME: "/Users/test",
+        GHQ_ROOT: "/Users/test/ghq",
+      },
     })
 
     expect(exitCode).toBe(1)

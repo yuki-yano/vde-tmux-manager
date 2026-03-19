@@ -44,4 +44,9 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
       otherSuffix: "",
     },
   },
+  categories: {
+    defaultCategory: "default",
+    rules: [],
+    sessionNameRules: [],
+  },
 }

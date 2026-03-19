@@ -3,7 +3,10 @@ import { __internal } from "./session-manager"
 
 const createTmuxMock = (): {
   readonly listSessions: ReturnType<typeof vi.fn>
+  readonly listSessionDetails: ReturnType<typeof vi.fn>
   readonly currentSession: ReturnType<typeof vi.fn>
+  readonly currentClientName: ReturnType<typeof vi.fn>
+  readonly showClientOption: ReturnType<typeof vi.fn>
   readonly listWindows: ReturnType<typeof vi.fn>
   readonly run: ReturnType<typeof vi.fn>
   readonly switchClient: ReturnType<typeof vi.fn>
@@ -25,7 +28,29 @@ const createTmuxMock = (): {
       { name: "dev", attachedClients: 1, lastActivity: 100 },
       { name: "work", attachedClients: 0, lastActivity: 50 },
     ]),
+    listSessionDetails: vi.fn(async () => [
+      {
+        id: "$1",
+        name: "dev",
+        attachedClients: 1,
+        lastActivity: 100,
+        category: "work",
+        projectPath: "/Users/test/ghq/github.com/company/dev",
+        categoryOverride: "",
+      },
+      {
+        id: "$2",
+        name: "work",
+        attachedClients: 0,
+        lastActivity: 50,
+        category: "private",
+        projectPath: "/tmp/work",
+        categoryOverride: "",
+      },
+    ]),
     currentSession: vi.fn(async () => "dev"),
+    currentClientName: vi.fn(async () => "/dev/ttys001"),
+    showClientOption: vi.fn(async () => "work"),
     listWindows: vi.fn(async (_name: string) => [
       {
         index: "0",
@@ -133,48 +158,82 @@ describe("session-manager internals", () => {
     const result = await __internal.collectSessions({
       tmux: tmux as never,
       inTmux: true,
+      config: {
+        ...DEFAULT_CONFIG,
+        categories: {
+          defaultCategory: "default",
+          rules: [
+            {
+              category: "work",
+              ghqPatterns: ["github.com/company/**"],
+              pathPatterns: [],
+            },
+            {
+              category: "private",
+              ghqPatterns: [],
+              pathPatterns: ["/tmp/**"],
+            },
+          ],
+          sessionNameRules: [],
+        },
+      },
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
     })
 
     expect(result[0]?.isCurrent).toBe(true)
+    expect(result[0]?.category).toBe("work")
     expect(result[0]?.totalWindows).toBe(1)
     expect(result[0]?.totalPanes).toBe(2)
   })
 
   it("builds selector entries", () => {
-    const entries = __internal.buildEntries([
-      {
-        name: "dev",
-        attachedClients: 1,
-        lastActivity: 100,
-        windows: [
-          {
-            index: "0",
-            panes: 2,
-            active: true,
-            name: "editor",
-            command: "zsh",
-          },
-        ],
-        totalWindows: 1,
-        totalPanes: 2,
-        isCurrent: true,
-      },
-      {
-        name: "work",
-        attachedClients: 0,
-        lastActivity: 50,
-        windows: [],
-        totalWindows: 0,
-        totalPanes: 0,
-        isCurrent: false,
-      },
-    ])
+    const entries = __internal.buildEntries(
+      [
+        {
+          id: "$1",
+          name: "dev",
+          attachedClients: 1,
+          lastActivity: 100,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/dev",
+          categoryOverride: "",
+          windows: [
+            {
+              index: "0",
+              panes: 2,
+              active: true,
+              name: "editor",
+              command: "zsh",
+            },
+          ],
+          totalWindows: 1,
+          totalPanes: 2,
+          isCurrent: true,
+        },
+        {
+          id: "$2",
+          name: "work",
+          attachedClients: 0,
+          lastActivity: 50,
+          category: "private",
+          projectPath: "/tmp/work",
+          categoryOverride: "",
+          windows: [],
+          totalWindows: 0,
+          totalPanes: 0,
+          isCurrent: false,
+        },
+      ],
+      "work",
+    )
 
     expect(
       entries.some(
         (entry) => entry.action === "session" && entry.name === "dev",
       ),
     ).toBe(true)
+    expect(entries[0]?.display).toContain("work")
     expect(entries.some((entry) => entry.action === "server")).toBe(true)
   })
 

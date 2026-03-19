@@ -18,6 +18,7 @@ type CommandExists = typeof commandExists
 export type RunFzfInput = {
   readonly entries: ReadonlyArray<SelectorEntry>
   readonly prompt: string
+  readonly headerText?: string
   readonly border: string
   readonly previewWidth: string
   readonly previewCommand: string
@@ -84,6 +85,7 @@ const buildBorderOption = ({
 export const runFzf = async ({
   entries,
   prompt,
+  headerText = "Enter switch | C-q kill | C-t new | C-r rename | C-d/C-u scroll",
   border,
   previewWidth,
   previewCommand,
@@ -118,7 +120,7 @@ export const runFzf = async ({
   const args = [
     "--ansi",
     `--prompt=${prompt}`,
-    "--header=Enter switch | C-q kill | C-t new | C-r rename | C-d/C-u scroll",
+    `--header=${headerText}`,
     buildBorderOption({ border, inTmux }),
     "--delimiter=\t",
     "--with-nth=3",

@@ -84,6 +84,25 @@ const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
         ...(partial.statuslineSessions?.fonts ?? {}),
       },
     },
+    categories: {
+      defaultCategory:
+        partial.categories?.defaultCategory ??
+        DEFAULT_CONFIG.categories.defaultCategory,
+      rules: (partial.categories?.rules ?? DEFAULT_CONFIG.categories.rules).map(
+        (rule) => ({
+          category: rule.category ?? "",
+          ghqPatterns: [...(rule.ghqPatterns ?? [])],
+          pathPatterns: [...(rule.pathPatterns ?? [])],
+        }),
+      ),
+      sessionNameRules: (
+        partial.categories?.sessionNameRules ??
+        DEFAULT_CONFIG.categories.sessionNameRules
+      ).map((rule) => ({
+        category: rule.category ?? "",
+        patterns: [...(rule.patterns ?? [])],
+      })),
+    },
   }
 }
 

@@ -7,6 +7,23 @@ describe("createTmuxClient", () => {
         return { stdout: "dev\n", stderr: "", exitCode: 0 }
       }
 
+      if (args[0] === "display-message" && args[2] === "#{client_name}") {
+        return { stdout: "/dev/ttys001\n", stderr: "", exitCode: 0 }
+      }
+
+      if (
+        args[0] === "list-sessions" &&
+        args[2] ===
+          "#{session_id}\t#{session_name}\t#{session_attached}\t#{session_activity}\t#{@category}\t#{@project_path}\t#{@category_override}"
+      ) {
+        return {
+          stdout:
+            "$1\tdev\t1\t100\twork\t/tmp/dev\t\n$2\twork\t0\t50\tprivate\t/tmp/work\toverride\n",
+          stderr: "",
+          exitCode: 0,
+        }
+      }
+
       if (
         args[0] === "list-sessions" &&
         args[2] === "#{session_name}\t#{session_attached}\t#{session_activity}"
@@ -101,7 +118,28 @@ describe("createTmuxClient", () => {
     const tmux = createTmuxClient({ runner: runner as never })
 
     await expect(tmux.currentSession()).resolves.toBe("dev")
+    await expect(tmux.currentClientName()).resolves.toBe("/dev/ttys001")
     await expect(tmux.listSessions()).resolves.toHaveLength(2)
+    await expect(tmux.listSessionDetails()).resolves.toEqual([
+      {
+        id: "$1",
+        name: "dev",
+        attachedClients: 1,
+        lastActivity: 100,
+        category: "work",
+        projectPath: "/tmp/dev",
+        categoryOverride: "",
+      },
+      {
+        id: "$2",
+        name: "work",
+        attachedClients: 0,
+        lastActivity: 50,
+        category: "private",
+        projectPath: "/tmp/work",
+        categoryOverride: "override",
+      },
+    ])
     await expect(tmux.listSessionIdentities()).resolves.toEqual([
       { id: "$1", name: "dev" },
       { id: "$2", name: "work" },
@@ -119,6 +157,12 @@ describe("createTmuxClient", () => {
     await expect(tmux.capturePaneTail("dev:0.0", 0)).resolves.toEqual([])
     await expect(tmux.paneCurrentPath("dev:0.0")).resolves.toBe("/tmp/project")
     await expect(tmux.showGlobalOption("test")).resolves.toBe("value")
+    await expect(tmux.showSessionOption("dev", "category")).resolves.toBe(
+      "value",
+    )
+    await expect(
+      tmux.showClientOption("/dev/ttys001", "current_category"),
+    ).resolves.toBe("value")
     await expect(tmux.newSessionDetached()).resolves.toBe("created")
   })
 
@@ -132,6 +176,11 @@ describe("createTmuxClient", () => {
     await tmux.selectWindow("dev:0")
     await tmux.newSessionInteractive()
     await tmux.newSessionInteractive(true)
+    await tmux.newSessionDetachedNamed("dev", "/tmp/dev")
+    await tmux.newSessionInteractiveNamed("dev", "/tmp/dev")
+    await tmux.setSessionOption("dev", "category", "work")
+    await tmux.unsetSessionOption("dev", "category_override")
+    await tmux.setClientOption("/dev/ttys001", "current_category", "work")
     await tmux.renameSession("dev", "next")
     await tmux.sendCtrlC("%1")
     await tmux.killSession("dev")
@@ -142,6 +191,31 @@ describe("createTmuxClient", () => {
     expect(runner).toHaveBeenCalledWith(
       "tmux",
       ["switch-client", "-t", "dev"],
+      { allowFail: true },
+    )
+    expect(runner).toHaveBeenCalledWith(
+      "tmux",
+      ["new-session", "-d", "-s", "dev", "-c", "/tmp/dev"],
+      { allowFail: true },
+    )
+    expect(runner).toHaveBeenCalledWith(
+      "tmux",
+      ["new-session", "-s", "dev", "-c", "/tmp/dev"],
+      { allowFail: true, inheritStdio: false },
+    )
+    expect(runner).toHaveBeenCalledWith(
+      "tmux",
+      ["set-option", "-q", "-t", "dev", "@category", "work"],
+      { allowFail: true },
+    )
+    expect(runner).toHaveBeenCalledWith(
+      "tmux",
+      ["set-option", "-qu", "-t", "dev", "@category_override"],
+      { allowFail: true },
+    )
+    expect(runner).toHaveBeenCalledWith(
+      "tmux",
+      ["set-option", "-q", "-t", "/dev/ttys001", "@current_category", "work"],
       { allowFail: true },
     )
     expect(runner).toHaveBeenCalledWith("tmux", ["attach", "-t", "dev"], {

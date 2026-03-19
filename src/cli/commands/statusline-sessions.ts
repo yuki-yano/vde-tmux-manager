@@ -1,7 +1,13 @@
+import { homedir } from "node:os"
+import {
+  getSessionsInCategory,
+  getCurrentCategory,
+} from "../../categories/state"
 import { loadConfig } from "../../config/loader"
 import type { ResolvedConfig } from "../../config/schema"
+import { resolveGhqRoot } from "../../categories/runtime"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
-import type { SessionIdentity } from "../../tmux/parse"
+import type { SessionDetails, SessionIdentity } from "../../tmux/parse"
 
 const EXIT_CODE_OK = 0
 const EXIT_CODE_ERROR = 1
@@ -94,9 +100,16 @@ export type RunStatuslineSessionsDeps = {
   readonly programName: string
   readonly stdout: (line: string) => void
   readonly stderr: (line: string) => void
-  readonly tmux?: Pick<TmuxClient, "listSessionIdentities" | "currentSession"> &
+  readonly tmux?: Pick<
+    TmuxClient,
+    | "listSessionDetails"
+    | "currentSession"
+    | "currentClientName"
+    | "showClientOption"
+  > &
     Partial<Pick<TmuxClient, "switchClient">>
   readonly loadConfigFn?: typeof loadConfig
+  readonly env?: NodeJS.ProcessEnv
 }
 
 const parseSwitchIndex = (value: string): number | null => {
@@ -123,6 +136,15 @@ const resolveSessionNameByIndex = ({
   return null
 }
 
+const toSessionIdentities = (
+  sessions: ReadonlyArray<SessionDetails>,
+): SessionIdentity[] => {
+  return sessions.map((session) => ({
+    id: session.id,
+    name: session.name,
+  }))
+}
+
 export const runStatuslineSessions = async (
   args: readonly string[],
   {
@@ -131,6 +153,7 @@ export const runStatuslineSessions = async (
     stderr,
     tmux = createTmuxClient(),
     loadConfigFn = loadConfig,
+    env = process.env,
   }: RunStatuslineSessionsDeps,
 ): Promise<number> => {
   if (args.length > 0 && isHelpFlag(args[0] as string)) {
@@ -152,7 +175,17 @@ export const runStatuslineSessions = async (
       return EXIT_CODE_USAGE
     }
 
-    const sessions = await tmux.listSessionIdentities()
+    const { config } = await loadConfigFn()
+    const currentCategory = await getCurrentCategory({ tmux, config })
+    const sessions = toSessionIdentities(
+      getSessionsInCategory({
+        sessions: await tmux.listSessionDetails(),
+        categoryName: currentCategory,
+        config,
+        homeDirectory: env.HOME ?? homedir(),
+        ghqRoot: await resolveGhqRoot({ env }),
+      }),
+    )
     const targetSessionName = resolveSessionNameByIndex({
       sessions,
       targetIndex,
@@ -186,10 +219,21 @@ export const runStatuslineSessions = async (
   }
 
   const { config } = await loadConfigFn()
-  const [sessions, currentSession] = await Promise.all([
-    tmux.listSessionIdentities(),
+  const currentCategory = await getCurrentCategory({ tmux, config })
+  const ghqRoot = await resolveGhqRoot({ env })
+  const [sessionDetails, currentSession] = await Promise.all([
+    tmux.listSessionDetails(),
     tmux.currentSession(),
   ])
+  const sessions = toSessionIdentities(
+    getSessionsInCategory({
+      sessions: sessionDetails,
+      categoryName: currentCategory,
+      config,
+      homeDirectory: env.HOME ?? homedir(),
+      ghqRoot,
+    }),
+  )
   stdout(
     renderStatuslineSessions({
       sessions,

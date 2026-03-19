@@ -1,4 +1,9 @@
 import chalk from "chalk"
+import {
+  getCurrentCategory,
+  resolveEffectiveSessionCategory,
+} from "../../categories/state"
+import { resolveGhqRoot } from "../../categories/runtime"
 import { loadConfig } from "../../config/loader"
 import type { ResolvedConfig } from "../../config/schema"
 import {
@@ -19,7 +24,7 @@ import {
   parseIntSafe,
   splitNonEmptyLines,
   splitWindowTarget,
-  type SessionMeta,
+  type SessionDetails,
   type WindowInfo,
 } from "../../tmux/parse"
 import { renderPreviewOnce } from "../../ui/preview"
@@ -46,7 +51,7 @@ const SYMBOLS = {
   server: "✕",
 } as const
 
-type SessionWithWindows = SessionMeta & {
+type SessionWithWindows = SessionDetails & {
   readonly windows: ReadonlyArray<WindowInfo>
   readonly totalWindows: number
   readonly totalPanes: number
@@ -168,12 +173,18 @@ const parseOptions = (args: readonly string[]): SessionManagerOptions => {
 const collectSessions = async ({
   tmux,
   inTmux,
+  config,
+  homeDirectory,
+  ghqRoot,
 }: {
   readonly tmux: TmuxClient
   readonly inTmux: boolean
+  readonly config: ResolvedConfig
+  readonly homeDirectory: string
+  readonly ghqRoot: string | null
 }): Promise<SessionWithWindows[]> => {
   const [sessions, currentSession, allWindowsResult] = await Promise.all([
-    tmux.listSessions(),
+    tmux.listSessionDetails(),
     inTmux ? tmux.currentSession() : Promise.resolve(""),
     tmux.run(
       [
@@ -194,6 +205,12 @@ const collectSessions = async ({
 
     result.push({
       ...session,
+      category: resolveEffectiveSessionCategory({
+        session,
+        config,
+        homeDirectory,
+        ghqRoot,
+      }),
       windows,
       totalWindows: windows.length,
       totalPanes,
@@ -206,6 +223,7 @@ const collectSessions = async ({
 
 const buildRows = (
   sessions: ReadonlyArray<SessionWithWindows>,
+  currentCategory: string,
 ): Array<{
   action: "session" | "window" | "server"
   name: string
@@ -241,19 +259,37 @@ const buildRows = (
     return chalk.gray(SYMBOLS.activityIdle)
   }
 
-  for (const session of sessions) {
+  const orderedSessions = [...sessions].sort((left, right) => {
+    const leftCurrent = left.category === currentCategory ? 0 : 1
+    const rightCurrent = right.category === currentCategory ? 0 : 1
+    if (leftCurrent !== rightCurrent) {
+      return leftCurrent - rightCurrent
+    }
+    const categoryCompare = left.category.localeCompare(right.category)
+    if (categoryCompare !== 0) {
+      return categoryCompare
+    }
+    return left.name.localeCompare(right.name)
+  })
+
+  for (const session of orderedSessions) {
     const stateSymbol = getSessionStateSymbol(session)
     const activity = getActivityBadge(session.lastActivity)
     const attachedState =
       session.attachedClients > 0
         ? chalk.yellow(`attached:${session.attachedClients}`)
         : chalk.gray("detached")
+    const categoryLabel =
+      session.category === currentCategory
+        ? chalk.green(`[${session.category}]`)
+        : chalk.cyan(`[${session.category}]`)
 
     rows.push({
       action: "session",
       name: session.name,
       columns: [
         `${stateSymbol} ${activity} ${chalk.bold(session.name)}`,
+        categoryLabel,
         `${chalk.gray("win")} ${chalk.cyan(String(session.totalWindows))}`,
         `${chalk.gray("pane")} ${chalk.cyan(String(session.totalPanes))}`,
         attachedState,
@@ -275,6 +311,7 @@ const buildRows = (
         name: `${session.name}:${window.index}`,
         columns: [
           `${branch} ${active} ${chalk.bold(session.name)}:${chalk.cyan(window.index)} ${truncateVisible(window.name, 24)}`,
+          categoryLabel,
           `${chalk.gray("pane")} ${chalk.cyan(String(window.panes))}`,
           `${chalk.gray("cmd")} ${command}`,
           "",
@@ -289,6 +326,7 @@ const buildRows = (
       name: "",
       columns: [
         `  ${chalk.red(SYMBOLS.server)} ${chalk.bold("tmux server")}`,
+        chalk.gray(`[${currentCategory}]`),
         chalk.cyan("tmux kill-server"),
         "",
         "",
@@ -369,8 +407,9 @@ const renderRows = (
 
 const buildEntries = (
   sessions: ReadonlyArray<SessionWithWindows>,
+  currentCategory: string,
 ): SelectorEntry[] => {
-  return renderRows(buildRows(sessions))
+  return renderRows(buildRows(sessions, currentCategory))
 }
 
 const parseSelectionLines = (
@@ -791,20 +830,30 @@ export const runSessionManager = async (
   }
 
   const inTmux = typeof env.TMUX === "string" && env.TMUX.length > 0
-  const sessions = await collectSessions({ tmux, inTmux })
+  const currentCategory = await getCurrentCategory({ tmux, config })
+  const ghqRoot = await resolveGhqRoot({ env })
+  const sessions = await collectSessions({
+    tmux,
+    inTmux,
+    config,
+    homeDirectory: env.HOME ?? process.env.HOME ?? "",
+    ghqRoot,
+  })
 
   if (!inTmux && sessions.length === 0) {
     await tmux.newSessionInteractive(true)
     return EXIT_CODE_OK
   }
 
-  const entries = buildEntries(sessions)
+  const entries = buildEntries(sessions, currentCategory)
   const executable = argv[1] ?? "vtm"
   const previewCommand = `FORCE_COLOR=1 PREVIEW_REFRESH_MS=${config.sessionManager.fzf.previewRefreshMs} ${shellEscape(executable)} session-manager --popup --render-preview {1} --preview-name {2}`
+  const headerText = `Current [${currentCategory}] | Enter switch | C-q kill | C-t new | C-r rename | C-d/C-u scroll`
 
   const lines = await runFzf({
     entries,
     prompt: config.sessionManager.fzf.prompt,
+    headerText,
     border: config.sessionManager.fzf.border,
     previewWidth: config.sessionManager.fzf.previewWidth,
     previewCommand,

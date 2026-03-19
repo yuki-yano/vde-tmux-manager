@@ -7,10 +7,14 @@
 ## 機能
 
 - fzf ベースのインタラクティブ session manager
+- project path ベースの category-aware session 管理
 - session/window/pane/server 対象の clean kill
+- current category 内に限定した session 巡回と statusline 切り替え
 - tmux statusline 用セッションセグメント生成
+- tmux statusline 用 current category セグメント生成
 - statusline 上の session をクリックして session 移動が可能
 - YAML ベース設定
+- YAML 向け JSON Schema を同梱
 - 実行名は `vde-tmux-manager` と `vtm` の2つ
 - statusline の前後フォント（prefix/suffix グリフ）を設定可能
 
@@ -43,6 +47,13 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager --popup`
 - `vtm session-manager kill-window <target>`
 - `vtm session-manager kill-pane <target>`
+- `vtm project switch <path>`
+- `vtm category use <name>`
+- `vtm session-cycle next`
+- `vtm session-cycle prev`
+- `vtm session set-category <session> <category>`
+- `vtm sessions refresh-category`
+- `vtm statusline-category`
 - `vtm statusline-sessions`
 - `vtm statusline-sessions switch 2`
 - `vtm --help`
@@ -70,6 +81,7 @@ pnpm add -g vde-tmux-manager
 設定例:
 
 ```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/yuki-yano/vde-tmux-manager/refs/heads/main/schemas/config.schema.json
 sessionManager:
   popup:
     enabled: true
@@ -101,7 +113,41 @@ statuslineSessions:
     currentSuffix: ""
     otherPrefix: ""
     otherSuffix: ""
+
+categories:
+  defaultCategory: public
+  rules:
+    - category: work
+      ghqPatterns:
+        - github.com/xxx-company/*
+        - github.com/xxx-company/**
+    - category: private
+      pathPatterns:
+        - ~/dotfiles
+        - ~/private/**
+        - /tmp/**
+    - category: oss
+      ghqPatterns:
+        - github.com/yuki-yano/**
+  sessionNameRules:
+    - category: private
+      patterns:
+        - dotfiles
+        - local-*
 ```
+
+category 判定順序:
+
+1. session override metadata (`@category_override`)
+2. path rule
+3. session name rule
+4. `defaultCategory`
+
+path rule は上から順に first-match-wins です。GHQ 配下は `github.com/org/repo` のような GHQ root 相対 path に対して `ghqPatterns` を評価し、非 GHQ path は `~` 展開後の絶対 path に対して `pathPatterns` を評価します。
+
+Schema ファイル:
+
+- [`schemas/config.schema.json`](./schemas/config.schema.json)
 
 ## tmux 連携例
 
@@ -117,9 +163,24 @@ session manager を開く:
 bind-key C-f run-shell 'vtm session-manager'
 ```
 
+tmux client ごとの current category を切り替える:
+
+```tmux
+bind-key C-w run-shell 'vtm category use work'
+bind-key C-p run-shell 'vtm category use private'
+```
+
+current category 内だけで session を巡回する:
+
+```tmux
+bind-key -n M-n run-shell 'vtm session-cycle next'
+bind-key -n M-p run-shell 'vtm session-cycle prev'
+```
+
 statusline で利用する:
 
 ```tmux
+set -g status-left '#(vtm statusline-category) '
 set -g status-right '#(vtm statusline-sessions) #[fg=colour250]| %Y-%m-%d %H:%M'
 ```
 
@@ -133,6 +194,20 @@ set -g status-right '#(vtm statusline-sessions --show-index) #[fg=colour250]| %Y
 
 ```bash
 vtm statusline-sessions switch 2
+```
+
+project path から session を作成または再利用する:
+
+```bash
+vtm project switch ~/ghq/github.com/xxx-company/foo
+vtm project switch /tmp/playground-repo
+```
+
+session category を明示 override し、あとでまとめて再計算する:
+
+```bash
+vtm session set-category dotfiles private
+vtm sessions refresh-category
 ```
 
 kill 操作に絞ったシンプルな右クリックメニュー:
@@ -150,3 +225,4 @@ bind-key -n MouseDown3Pane display-menu -T "Pane #{pane_index}" -t = -x M -y M \
 - `session-manager` が開かない場合は、`tmux` と `fzf` が `PATH` にあるか確認してください。
 - clean kill が期待通りに動かない場合は、`ps` と `kill` コマンドの有無を確認してください。
 - プレビューのリポジトリ情報が空の場合は、pane の現在パスが Git リポジトリ配下か確認してください。
+- category 判定が意図とずれる場合は、`GHQ_ROOT` / `ghq root` を確認し、`vtm sessions refresh-category` を実行してください。

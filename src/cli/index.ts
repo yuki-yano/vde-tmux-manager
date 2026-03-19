@@ -1,5 +1,11 @@
 import { basename } from "node:path"
+import { runCategory } from "./commands/category"
+import { runProject } from "./commands/project"
+import { runSession } from "./commands/session"
+import { runSessionCycle } from "./commands/session-cycle"
 import { runSessionManager } from "./commands/session-manager"
+import { runSessions } from "./commands/sessions"
+import { runStatuslineCategory } from "./commands/statusline-category"
 import { runStatuslineSessions } from "./commands/statusline-sessions"
 
 export type CLI = {
@@ -29,8 +35,32 @@ const EXIT_CODE = {
 
 const COMMANDS: readonly CommandHelp[] = [
   {
+    name: "category",
+    summary: "Manage current tmux client category",
+  },
+  {
+    name: "project",
+    summary: "Create or switch tmux sessions by project path",
+  },
+  {
+    name: "session",
+    summary: "Manage tmux session metadata",
+  },
+  {
+    name: "session-cycle",
+    summary: "Cycle tmux sessions within the current category",
+  },
+  {
     name: "session-manager",
     summary: "Manage tmux sessions interactively",
+  },
+  {
+    name: "sessions",
+    summary: "Bulk tmux session metadata operations",
+  },
+  {
+    name: "statusline-category",
+    summary: "Render current category statusline segment",
   },
   {
     name: "statusline-sessions",
@@ -112,8 +142,56 @@ export const createCli = (options: CliOptions = {}): CLI => {
     }
 
     try {
+      if (command === "category") {
+        return await runCategory(rest, {
+          programName,
+          stdout,
+          stderr,
+        })
+      }
+
+      if (command === "project") {
+        return await runProject(rest, {
+          programName,
+          stdout,
+          stderr,
+        })
+      }
+
+      if (command === "session") {
+        return await runSession(rest, {
+          programName,
+          stdout,
+          stderr,
+        })
+      }
+
+      if (command === "session-cycle") {
+        return await runSessionCycle(rest, {
+          programName,
+          stdout,
+          stderr,
+        })
+      }
+
       if (command === "session-manager") {
         return await runSessionManager(rest, {
+          programName,
+          stdout,
+          stderr,
+        })
+      }
+
+      if (command === "sessions") {
+        return await runSessions(rest, {
+          programName,
+          stdout,
+          stderr,
+        })
+      }
+
+      if (command === "statusline-category") {
+        return await runStatuslineCategory(rest, {
           programName,
           stdout,
           stderr,

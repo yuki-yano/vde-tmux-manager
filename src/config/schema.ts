@@ -50,9 +50,27 @@ export type StatuslineSessionsConfig = {
   fonts: StatuslineSessionsFontsConfig
 }
 
+export type CategoryRuleConfig = {
+  category: string
+  ghqPatterns: readonly string[]
+  pathPatterns: readonly string[]
+}
+
+export type SessionNameRuleConfig = {
+  category: string
+  patterns: readonly string[]
+}
+
+export type CategoriesConfig = {
+  defaultCategory: string
+  rules: readonly CategoryRuleConfig[]
+  sessionNameRules: readonly SessionNameRuleConfig[]
+}
+
 export type ResolvedConfig = {
   sessionManager: SessionManagerConfig
   statuslineSessions: StatuslineSessionsConfig
+  categories: CategoriesConfig
 }
 
 export type PartialConfig = {
@@ -66,6 +84,18 @@ export type PartialConfig = {
     showIndex?: boolean
     colors?: Partial<StatuslineSessionsColorsConfig>
     fonts?: Partial<StatuslineSessionsFontsConfig>
+  }
+  categories?: {
+    defaultCategory?: string
+    rules?: Array<{
+      category?: string
+      ghqPatterns?: string[]
+      pathPatterns?: string[]
+    }>
+    sessionNameRules?: Array<{
+      category?: string
+      patterns?: string[]
+    }>
   }
 }
 
@@ -223,6 +253,35 @@ const parseNonNegativeInteger = (
   }
 
   return value
+}
+
+const parseStringArray = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  required: boolean,
+): string[] | undefined => {
+  if (value === undefined) {
+    if (required) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (Array.isArray(value) !== true) {
+    pushIssue(issues, path, "must be an array")
+    return undefined
+  }
+
+  const result: string[] = []
+  for (const [index, item] of value.entries()) {
+    const parsed = parseNonEmptyString(item, [...path, index], issues, true)
+    if (parsed !== undefined) {
+      result.push(parsed)
+    }
+  }
+
+  return result
 }
 
 const parsePopupConfig = (
@@ -682,6 +741,270 @@ const parseFontsConfig = (
   return partial
 }
 
+const parseCategoryRule = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  requiredFields: boolean,
+): Partial<CategoryRuleConfig> | CategoryRuleConfig | undefined => {
+  if (!isRecord(value)) {
+    pushIssue(issues, path, "must be an object")
+    return undefined
+  }
+
+  ensureNoUnknownKeys(
+    value,
+    ["category", "ghqPatterns", "pathPatterns"],
+    path,
+    issues,
+  )
+
+  const category = parseNonEmptyString(
+    value.category,
+    [...path, "category"],
+    issues,
+    requiredFields,
+  )
+  const ghqPatterns = parseStringArray(
+    value.ghqPatterns,
+    [...path, "ghqPatterns"],
+    issues,
+    false,
+  )
+  const pathPatterns = parseStringArray(
+    value.pathPatterns,
+    [...path, "pathPatterns"],
+    issues,
+    false,
+  )
+
+  if (
+    ghqPatterns === undefined &&
+    pathPatterns === undefined &&
+    requiredFields === true
+  ) {
+    pushIssue(issues, path, "must define ghqPatterns or pathPatterns")
+  }
+
+  const partial: Partial<CategoryRuleConfig> = {}
+  if (category !== undefined) {
+    partial.category = category
+  }
+  if (ghqPatterns !== undefined) {
+    partial.ghqPatterns = ghqPatterns
+  }
+  if (pathPatterns !== undefined) {
+    partial.pathPatterns = pathPatterns
+  }
+
+  if (requiredFields) {
+    if (partial.category === undefined) {
+      return undefined
+    }
+    return {
+      category: partial.category,
+      ghqPatterns: partial.ghqPatterns ?? [],
+      pathPatterns: partial.pathPatterns ?? [],
+    }
+  }
+
+  return partial
+}
+
+const parseCategoryRules = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  required: boolean,
+  requiredFields: boolean,
+): Partial<CategoryRuleConfig>[] | CategoryRuleConfig[] | undefined => {
+  if (value === undefined) {
+    if (required) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (Array.isArray(value) !== true) {
+    pushIssue(issues, path, "must be an array")
+    return undefined
+  }
+
+  const result: Array<Partial<CategoryRuleConfig> | CategoryRuleConfig> = []
+  for (const [index, item] of value.entries()) {
+    const parsed = parseCategoryRule(
+      item,
+      [...path, index],
+      issues,
+      requiredFields,
+    )
+    if (parsed !== undefined) {
+      result.push(parsed)
+    }
+  }
+  return result
+}
+
+const parseSessionNameRule = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  requiredFields: boolean,
+): Partial<SessionNameRuleConfig> | SessionNameRuleConfig | undefined => {
+  if (!isRecord(value)) {
+    pushIssue(issues, path, "must be an object")
+    return undefined
+  }
+
+  ensureNoUnknownKeys(value, ["category", "patterns"], path, issues)
+
+  const category = parseNonEmptyString(
+    value.category,
+    [...path, "category"],
+    issues,
+    requiredFields,
+  )
+  const patterns = parseStringArray(
+    value.patterns,
+    [...path, "patterns"],
+    issues,
+    requiredFields,
+  )
+
+  const partial: Partial<SessionNameRuleConfig> = {}
+  if (category !== undefined) {
+    partial.category = category
+  }
+  if (patterns !== undefined) {
+    partial.patterns = patterns
+  }
+
+  if (requiredFields) {
+    if (partial.category === undefined || partial.patterns === undefined) {
+      return undefined
+    }
+    return partial as SessionNameRuleConfig
+  }
+
+  return partial
+}
+
+const parseSessionNameRules = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  required: boolean,
+  requiredFields: boolean,
+): Partial<SessionNameRuleConfig>[] | SessionNameRuleConfig[] | undefined => {
+  if (value === undefined) {
+    if (required) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (Array.isArray(value) !== true) {
+    pushIssue(issues, path, "must be an array")
+    return undefined
+  }
+
+  const result: Array<Partial<SessionNameRuleConfig> | SessionNameRuleConfig> =
+    []
+  for (const [index, item] of value.entries()) {
+    const parsed = parseSessionNameRule(
+      item,
+      [...path, index],
+      issues,
+      requiredFields,
+    )
+    if (parsed !== undefined) {
+      result.push(parsed)
+    }
+  }
+  return result
+}
+
+const parseCategories = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  requiredObject: boolean,
+  requiredFields: boolean,
+): PartialConfig["categories"] | CategoriesConfig | undefined => {
+  if (value === undefined) {
+    if (requiredObject) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (!isRecord(value)) {
+    pushIssue(issues, path, "must be an object")
+    return undefined
+  }
+
+  ensureNoUnknownKeys(
+    value,
+    ["defaultCategory", "rules", "sessionNameRules"],
+    path,
+    issues,
+  )
+
+  const defaultCategory = parseNonEmptyString(
+    value.defaultCategory,
+    [...path, "defaultCategory"],
+    issues,
+    requiredFields,
+  )
+  const rules = parseCategoryRules(
+    value.rules,
+    [...path, "rules"],
+    issues,
+    false,
+    requiredFields,
+  )
+  const sessionNameRules = parseSessionNameRules(
+    value.sessionNameRules,
+    [...path, "sessionNameRules"],
+    issues,
+    false,
+    requiredFields,
+  )
+
+  const partial: NonNullable<PartialConfig["categories"]> = {}
+  if (defaultCategory !== undefined) {
+    partial.defaultCategory = defaultCategory
+  }
+  if (rules !== undefined) {
+    partial.rules = rules as NonNullable<PartialConfig["categories"]>["rules"]
+  }
+  if (sessionNameRules !== undefined) {
+    partial.sessionNameRules = sessionNameRules as NonNullable<
+      PartialConfig["categories"]
+    >["sessionNameRules"]
+  }
+
+  if (requiredFields) {
+    if (partial.defaultCategory === undefined) {
+      return undefined
+    }
+    return {
+      defaultCategory: partial.defaultCategory,
+      rules: (partial.rules ?? []).map((rule) => ({
+        category: rule?.category ?? "",
+        ghqPatterns: rule?.ghqPatterns ?? [],
+        pathPatterns: rule?.pathPatterns ?? [],
+      })),
+      sessionNameRules: (partial.sessionNameRules ?? []).map((rule) => ({
+        category: rule?.category ?? "",
+        patterns: rule?.patterns ?? [],
+      })),
+    }
+  }
+
+  return partial
+}
+
 const parseSessionManager = (
   value: unknown,
   path: ReadonlyArray<PropertyKey>,
@@ -854,7 +1177,7 @@ export const validatePartialConfig = (
 
   ensureNoUnknownKeys(
     input,
-    ["sessionManager", "statuslineSessions"],
+    ["sessionManager", "statuslineSessions", "categories"],
     [],
     issues,
   )
@@ -873,6 +1196,13 @@ export const validatePartialConfig = (
     false,
     false,
   )
+  const categories = parseCategories(
+    input.categories,
+    ["categories"],
+    issues,
+    false,
+    false,
+  )
 
   if (issues.length > 0) {
     return { success: false, issues }
@@ -885,6 +1215,9 @@ export const validatePartialConfig = (
   if (statuslineSessions !== undefined) {
     partial.statuslineSessions =
       statuslineSessions as PartialConfig["statuslineSessions"]
+  }
+  if (categories !== undefined) {
+    partial.categories = categories as PartialConfig["categories"]
   }
 
   return {
@@ -904,7 +1237,7 @@ export const validateResolvedConfig = (
 
   ensureNoUnknownKeys(
     input,
-    ["sessionManager", "statuslineSessions"],
+    ["sessionManager", "statuslineSessions", "categories"],
     [],
     issues,
   )
@@ -923,11 +1256,19 @@ export const validateResolvedConfig = (
     true,
     true,
   )
+  const categories = parseCategories(
+    input.categories,
+    ["categories"],
+    issues,
+    true,
+    true,
+  )
 
   if (
     issues.length > 0 ||
     sessionManager === undefined ||
-    statuslineSessions === undefined
+    statuslineSessions === undefined ||
+    categories === undefined
   ) {
     return { success: false, issues }
   }
@@ -937,6 +1278,7 @@ export const validateResolvedConfig = (
     data: {
       sessionManager: sessionManager as SessionManagerConfig,
       statuslineSessions: statuslineSessions as StatuslineSessionsConfig,
+      categories: categories as CategoriesConfig,
     },
   }
 }
