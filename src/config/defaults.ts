@@ -53,6 +53,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
   },
   categories: {
     defaultCategory: "",
+    order: {},
     rules: [],
     sessionNameRules: [],
   },

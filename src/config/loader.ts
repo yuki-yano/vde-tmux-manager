@@ -97,6 +97,10 @@ const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
       defaultCategory:
         partial.categories?.defaultCategory ??
         DEFAULT_CONFIG.categories.defaultCategory,
+      order: {
+        ...DEFAULT_CONFIG.categories.order,
+        ...(partial.categories?.order ?? {}),
+      },
       rules: (partial.categories?.rules ?? DEFAULT_CONFIG.categories.rules).map(
         (rule) => ({
           category: rule.category ?? "",

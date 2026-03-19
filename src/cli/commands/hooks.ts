@@ -1,6 +1,9 @@
 import { homedir } from "node:os"
 import { resolveGhqRoot } from "../../categories/runtime"
-import { rememberCurrentSessionForCurrentClient, rememberSessionForClient } from "../../categories/state"
+import {
+  rememberCurrentSessionForCurrentClient,
+  rememberSessionForClient,
+} from "../../categories/state"
 import { loadConfig } from "../../config/loader"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 
