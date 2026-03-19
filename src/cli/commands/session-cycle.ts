@@ -47,13 +47,16 @@ export const runSessionCycle = async (
     return EXIT_CODE_USAGE
   }
 
-  const { config } = await loadConfigFn()
+  const [{ config }, ghqRoot] = await Promise.all([
+    loadConfigFn(),
+    resolveGhqRoot({ env }),
+  ])
   await cycleSessionInCurrentCategory({
     tmux,
     config,
     direction,
     homeDirectory: env.HOME ?? homedir(),
-    ghqRoot: await resolveGhqRoot({ env }),
+    ghqRoot,
   })
   return EXIT_CODE_OK
 }

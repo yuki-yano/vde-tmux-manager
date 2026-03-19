@@ -127,6 +127,8 @@ describe("current category", () => {
     })
 
     expect(target).toBe("repo-b")
+    expect(tmux.currentClientName).toHaveBeenCalledTimes(1)
+    expect(tmux.listSessionDetails).toHaveBeenCalledTimes(1)
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
   })
 
@@ -160,7 +162,17 @@ describe("current category", () => {
     })
 
     expect(target).toBe("repo-a")
-    expect(tmux.switchClient).toHaveBeenCalledWith("repo-a")
+    expect(tmux.switchClient).not.toHaveBeenCalled()
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "current_category",
+      "work",
+    )
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      categoryLastSessionOption("work"),
+      "repo-a",
+    )
   })
 
   it("switches only the category when the category has no sessions", async () => {
@@ -384,11 +396,18 @@ describe("cycleSessionInCurrentCategory", () => {
       ghqRoot: "/Users/test/ghq",
     })
 
+    expect(tmux.currentClientName).toHaveBeenCalledTimes(1)
+    expect(tmux.listSessionDetails).toHaveBeenCalledTimes(1)
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
       categoryLastSessionOption("work"),
       "repo-b",
+    )
+    expect(tmux.setClientOption).not.toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "current_category",
+      "work",
     )
   })
 })

@@ -410,11 +410,23 @@ describe("session-manager internals", () => {
       env: { TMUX: "1", HOME: "/Users/test", GHQ_ROOT: "/Users/test/ghq" },
     })
 
-    expect(tmux.switchClient).toHaveBeenCalledWith("dev")
-    expect(tmux.setClientOption).toHaveBeenCalledWith(
-      "/dev/ttys001",
-      categoryLastSessionOption("work"),
-      "dev",
+    expect(tmux.run).toHaveBeenCalledWith(
+      [
+        "switch-client",
+        "-t",
+        "dev",
+        ";",
+        "set-option",
+        "-sq",
+        "@client_2f6465762f74747973303031_current_category",
+        "work",
+        ";",
+        "set-option",
+        "-sq",
+        "@client_2f6465762f74747973303031_category_last_session_776f726b",
+        "dev",
+      ],
+      { allowFail: true },
     )
 
     await __internal.runSelection({

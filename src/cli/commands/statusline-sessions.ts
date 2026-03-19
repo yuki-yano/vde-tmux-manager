@@ -8,6 +8,7 @@ import { loadConfig } from "../../config/loader"
 import type { ResolvedConfig } from "../../config/schema"
 import { resolveGhqRoot } from "../../categories/runtime"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
+import { parseSessionDetailsList } from "../../tmux/parse"
 import type { SessionDetails, SessionIdentity } from "../../tmux/parse"
 
 const EXIT_CODE_OK = 0
@@ -146,6 +147,73 @@ const toSessionIdentities = (
   }))
 }
 
+const TMUX_BATCH_SEPARATOR = ";"
+const CATEGORY_PREFIX = "__VTM_CATEGORY__"
+const SESSION_PREFIX = "__VTM_SESSION__"
+
+const encodeScopeKey = (value: string): string => {
+  return Buffer.from(value, "utf8").toString("hex") || "0"
+}
+
+const readCurrentCategoryAndSessionDetails = async ({
+  tmux,
+  clientName,
+  config,
+}: {
+  readonly tmux: Pick<TmuxClient, "listSessionDetails" | "showClientOption"> &
+    Partial<Pick<TmuxClient, "run">>
+  readonly clientName: string
+  readonly config: ResolvedConfig
+}): Promise<{ currentCategory: string; sessionDetails: SessionDetails[] }> => {
+  if (typeof tmux.run === "function") {
+    const optionName = `@client_${encodeScopeKey(clientName)}_current_category`
+    const sessionFormat = `${SESSION_PREFIX}#{session_id}\t#{session_name}\t#{session_attached}\t#{session_activity}\t#{@category}\t#{@project_path}\t#{@category_override}`
+    const result = await tmux.run(
+      [
+        "display-message",
+        "-p",
+        `${CATEGORY_PREFIX}#{${optionName}}`,
+        TMUX_BATCH_SEPARATOR,
+        "list-sessions",
+        "-F",
+        sessionFormat,
+      ],
+      {
+        allowFail: true,
+      },
+    )
+    const lines = result.stdout
+      .split(/\r?\n/)
+      .map((line) => line.trimEnd())
+      .filter((line) => line.length > 0)
+    const categoryLine = lines.find((line) => line.startsWith(CATEGORY_PREFIX))
+    const sessionLines = lines
+      .filter((line) => line.startsWith(SESSION_PREFIX))
+      .map((line) => line.slice(SESSION_PREFIX.length))
+
+    const categoryValue = categoryLine?.slice(CATEGORY_PREFIX.length) ?? ""
+    return {
+      currentCategory:
+        categoryValue.length > 0
+          ? categoryValue
+          : config.categories.defaultCategory,
+      sessionDetails: parseSessionDetailsList(sessionLines.join("\n")),
+    }
+  }
+
+  const [categoryValue, sessionDetails] = await Promise.all([
+    tmux.showClientOption(clientName, "current_category"),
+    tmux.listSessionDetails(),
+  ])
+  return {
+    currentCategory:
+      categoryValue.length > 0
+        ? categoryValue
+        : config.categories.defaultCategory,
+    sessionDetails,
+  }
+}
+
 export const runStatuslineSessions = async (
   args: readonly string[],
   {
@@ -176,15 +244,24 @@ export const runStatuslineSessions = async (
       return EXIT_CODE_USAGE
     }
 
-    const { config } = await loadConfigFn()
-    const currentCategory = await getCurrentCategory({ tmux, config })
+    const [{ config }, ghqRoot, clientName] = await Promise.all([
+      loadConfigFn(),
+      resolveGhqRoot({ env }),
+      tmux.currentClientName(),
+    ])
+    const { currentCategory, sessionDetails } =
+      await readCurrentCategoryAndSessionDetails({
+        tmux,
+        clientName,
+        config,
+      })
     const sessions = toSessionIdentities(
       getSessionsInCategory({
-        sessions: await tmux.listSessionDetails(),
+        sessions: sessionDetails,
         categoryName: currentCategory,
         config,
         homeDirectory: env.HOME ?? homedir(),
-        ghqRoot: await resolveGhqRoot({ env }),
+        ghqRoot,
       }),
     )
     const targetSessionName = resolveSessionNameByIndex({
@@ -219,7 +296,9 @@ export const runStatuslineSessions = async (
       sessionName: targetSessionName,
       categoryName: currentCategory,
       homeDirectory: env.HOME ?? homedir(),
-      ghqRoot: await resolveGhqRoot({ env }),
+      ghqRoot,
+      clientName,
+      skipCurrentCategoryUpdate: true,
     })
     return EXIT_CODE_OK
   }
@@ -236,9 +315,11 @@ export const runStatuslineSessions = async (
     return EXIT_CODE_USAGE
   }
 
-  const { config } = await loadConfigFn()
+  const [{ config }, ghqRoot] = await Promise.all([
+    loadConfigFn(),
+    resolveGhqRoot({ env }),
+  ])
   const currentCategory = await getCurrentCategory({ tmux, config })
-  const ghqRoot = await resolveGhqRoot({ env })
   const [sessionDetails, currentSession] = await Promise.all([
     tmux.listSessionDetails(),
     tmux.currentSession(),

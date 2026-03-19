@@ -86,11 +86,18 @@ describe("runSessionCycle", () => {
     })
 
     expect(exitCode).toBe(0)
+    expect(tmux.currentClientName).toHaveBeenCalledTimes(1)
+    expect(tmux.listSessionDetails).toHaveBeenCalledTimes(1)
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
       categoryLastSessionOption("work"),
       "repo-b",
+    )
+    expect(tmux.setClientOption).not.toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "current_category",
+      "work",
     )
   })
 })

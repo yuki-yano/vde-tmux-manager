@@ -332,9 +332,15 @@ describe("runStatuslineSessions", () => {
 
     expect(exitCode).toBe(0)
     expect(tmux.switchClient).toHaveBeenCalledWith("work")
+    expect(tmux.setClientOption).toHaveBeenCalledTimes(1)
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
       categoryLastSessionOption("work"),
+      "work",
+    )
+    expect(tmux.setClientOption).not.toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "current_category",
       "work",
     )
     expect(stdout.lines).toHaveLength(0)

@@ -89,6 +89,8 @@ describe("runCategory", () => {
     })
 
     expect(exitCode).toBe(0)
+    expect(tmux.currentClientName).toHaveBeenCalledTimes(1)
+    expect(tmux.listSessionDetails).toHaveBeenCalledTimes(1)
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
       "current_category",
