@@ -52,6 +52,14 @@ describe("switchProjectSession", () => {
 
     const tmux = {
       listSessionDetails: vi.fn(async () => []),
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async (_target: string, option: string) => {
+        if (option === "category_last_sessions") {
+          return ""
+        }
+        return "public"
+      }),
+      setClientOption: vi.fn(async () => undefined),
       newSessionDetachedNamed: vi.fn(async () => undefined),
       setSessionOption: vi.fn(async () => undefined),
       switchClient: vi.fn(async () => undefined),
@@ -98,6 +106,18 @@ describe("switchProjectSession", () => {
       "work",
     )
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-a")
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "current_category",
+      "work",
+    )
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "category_last_sessions",
+      JSON.stringify({
+        work: "repo-a",
+      }),
+    )
   })
 
   it("supports non-ghq paths such as /tmp", async () => {
