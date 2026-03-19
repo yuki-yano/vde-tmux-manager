@@ -94,4 +94,90 @@ describe("runCategory", () => {
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
     expect(stderr.lines).toHaveLength(0)
   })
+
+  it("switches to the next ordered category", async () => {
+    const stdout = createCollector()
+    const stderr = createCollector()
+
+    const tmux = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      currentSession: vi.fn(async () => "repo-work"),
+      showClientOption: vi.fn(async (_target: string, option: string) => {
+        if (option === "current_category") {
+          return "work"
+        }
+        if (option === "category_last_sessions") {
+          return JSON.stringify({
+            private: "repo-private",
+          })
+        }
+        return ""
+      }),
+      setClientOption: vi.fn(async () => undefined),
+      listSessionDetails: vi.fn(async () => [
+        {
+          id: "$1",
+          name: "repo-work",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "work",
+          projectPath: "/tmp/repo-work",
+          categoryOverride: "",
+        },
+        {
+          id: "$2",
+          name: "repo-private",
+          attachedClients: 0,
+          lastActivity: 0,
+          category: "private",
+          projectPath: "/tmp/repo-private",
+          categoryOverride: "",
+        },
+      ]),
+      switchClient: vi.fn(async () => undefined),
+    }
+
+    const loadConfigFn = vi.fn(async () => ({
+      config: {
+        ...DEFAULT_CONFIG,
+        categories: {
+          defaultCategory: "work",
+          order: {
+            work: 10,
+            private: 20,
+          },
+          rules: [
+            {
+              category: "work",
+              ghqPatterns: [],
+              pathPatterns: ["/tmp/repo-work"],
+            },
+            {
+              category: "private",
+              ghqPatterns: [],
+              pathPatterns: ["/tmp/repo-private"],
+            },
+          ],
+          sessionNameRules: [],
+        },
+      },
+      path: "/tmp/config.yaml",
+      loaded: false,
+    }))
+
+    const exitCode = await runCategory(["next"], {
+      programName: "vtm",
+      stdout: stdout.write,
+      stderr: stderr.write,
+      tmux: tmux as never,
+      loadConfigFn,
+      env: {
+        HOME: "/Users/test",
+      },
+    })
+
+    expect(exitCode).toBe(0)
+    expect(tmux.switchClient).toHaveBeenCalledWith("repo-private")
+    expect(stderr.lines).toHaveLength(0)
+  })
 })

@@ -1,4 +1,8 @@
-import { collectDefinedCategories, resolveCategoryForSession } from "./matcher"
+import {
+  collectDefinedCategories,
+  resolveCategoryForSession,
+  sortCategories,
+} from "./matcher"
 import type { ResolvedConfig } from "../config/schema"
 import type { TmuxClient } from "../tmux/client"
 import type { SessionDetails } from "../tmux/parse"
@@ -30,6 +34,38 @@ const ensureKnownCategory = ({
   }
 
   return normalized
+}
+
+export const getOrderedCategories = (config: ResolvedConfig): string[] => {
+  return sortCategories(
+    collectDefinedCategories(config.categories),
+    config.categories.order,
+  )
+}
+
+export const resolveAdjacentCategory = ({
+  config,
+  currentCategory,
+  direction,
+}: {
+  readonly config: ResolvedConfig
+  readonly currentCategory: string
+  readonly direction: "next" | "prev"
+}): string => {
+  const categories = getOrderedCategories(config)
+  if (categories.length === 0) {
+    throw new Error("no categories defined")
+  }
+
+  const currentIndex = categories.findIndex(
+    (category) => category === currentCategory,
+  )
+  const baseIndex = currentIndex === -1 ? 0 : currentIndex
+  const nextIndex =
+    direction === "next"
+      ? (baseIndex + 1) % categories.length
+      : (baseIndex - 1 + categories.length) % categories.length
+  return categories[nextIndex] ?? categories[0] ?? ""
 }
 
 const requireCurrentClientName = async ({

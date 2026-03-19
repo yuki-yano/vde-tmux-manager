@@ -143,6 +143,35 @@ describe("loadConfig", () => {
     expect(result.config.categories.sessionNameRules).toEqual([])
   })
 
+  it("accepts category order values in config", async () => {
+    const yaml = [
+      "categories:",
+      "  defaultCategory: work",
+      "  order:",
+      "    work: 10",
+      "    private: 20",
+      "  rules:",
+      "    - category: private",
+      "      ghqPatterns:",
+      "        - github.com/company/**",
+      "",
+    ].join("\n")
+
+    const readFileFn = vi.fn(async (): Promise<string> => yaml)
+    const result = await loadConfig({
+      env: {},
+      homeDirectory: "/tmp/home",
+      readFileFn,
+    })
+
+    expect(result.config.categories.defaultCategory).toBe("work")
+    expect(result.config.categories.order).toEqual({
+      work: 10,
+      private: 20,
+    })
+    expect(result.config.categories.rules[0]?.category).toBe("private")
+  })
+
   it("throws ConfigValidationError for invalid YAML", async () => {
     const readFileFn = vi.fn(async (): Promise<string> => "sessionManager: [")
 

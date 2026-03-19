@@ -49,6 +49,8 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager kill-pane <target>`
 - `vtm project switch <path>`
 - `vtm category use <name>`
+- `vtm category next`
+- `vtm category prev`
 - `vtm hooks on-client-session-changed [<client-name> <session-name>]`
 - `vtm session-cycle next`
 - `vtm session-cycle prev`
@@ -122,7 +124,11 @@ statuslineSessions:
     otherSuffix: ""
 
 categories:
-  defaultCategory: public
+  defaultCategory: work
+  order:
+    work: 10
+    private: 20
+    oss: 30
   rules:
     - category: work
       ghqPatterns:
@@ -152,6 +158,8 @@ category 判定順序:
 
 path rule は上から順に first-match-wins です。GHQ 配下は `github.com/org/repo` のような GHQ root 相対 path に対して `ghqPatterns` を評価し、非 GHQ path は `~` 展開後の絶対 path に対して `pathPatterns` を評価します。
 
+category 名は文字列のまま使い、整数順は `categories.order` で別に定義します。`vtm category next` / `vtm category prev` はその順序で切り替えます。
+
 `categories` を設定しない場合は、全 session が 1 つの無名 category に所属します。このとき session-cycle や statusline-sessions switch は全 session を対象に動作し、`vtm statusline-category` は何も表示しません。
 
 Schema ファイル:
@@ -177,6 +185,8 @@ tmux client ごとの current category を切り替える:
 ```tmux
 bind-key C-w run-shell 'vtm category use work'
 bind-key C-p run-shell 'vtm category use private'
+bind-key ] run-shell 'vtm category next'
+bind-key [ run-shell 'vtm category prev'
 ```
 
 `vtm category use <name>` は、その tmux client の current category を更新したあと、その client でその category 内で最後に見ていた session へ戻ります。記録がなければ category 内の先頭 session に移動し、category に session がなければ category だけ切り替えます。

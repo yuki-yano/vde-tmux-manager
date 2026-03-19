@@ -194,6 +194,13 @@
           "type": "string",
           "description": "Fallback category when no override, path rule, or session name rule matches. Empty string means an unnamed category."
         },
+        "order": {
+          "type": "object",
+          "description": "Optional category ordering. Keys are category names and values are integers used by `vtm category next|prev`.",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
         "rules": {
           "type": "array",
           "description": "Path-based rules evaluated from top to bottom. First match wins.",

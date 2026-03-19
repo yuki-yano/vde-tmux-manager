@@ -1,11 +1,13 @@
+import type { CategoriesConfig } from "../config/schema"
 import {
   collectDefinedCategories,
   matchGlob,
   resolveCategoryForSession,
   resolveProjectPathCategory,
+  sortCategories,
 } from "./matcher"
 
-const config = {
+const config: CategoriesConfig = {
   defaultCategory: "public",
   rules: [
     {
@@ -175,11 +177,20 @@ describe("resolveCategoryForSession", () => {
 
 describe("collectDefinedCategories", () => {
   it("collects categories from default, path rules, and session name rules", () => {
-    expect(collectDefinedCategories(config)).toEqual([
+    expect(sortCategories(collectDefinedCategories(config))).toEqual([
       "oss",
       "private",
       "public",
       "work",
     ])
+  })
+
+  it("sorts numeric categories by numeric order", () => {
+    expect(
+      sortCategories(["work", "private", "oss"], {
+        private: 20,
+        work: 10,
+      }),
+    ).toEqual(["work", "private", "oss"])
   })
 })

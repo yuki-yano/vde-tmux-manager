@@ -51,20 +51,23 @@ describe("config schema file", () => {
       '    otherPrefix: ""',
       '    otherSuffix: ""',
       "categories:",
-      "  defaultCategory: public",
+      "  defaultCategory: work",
+      "  order:",
+      "    work: 10",
+      "    private: 20",
       "  rules:",
-      "    - category: work",
+      "    - category: private",
       "      ghqPatterns:",
       "        - github.com/example/*",
       "  sessionNameRules:",
-      "    - category: public",
+      "    - category: work",
       "      patterns:",
       "        - local-*",
       "",
     ].join("\n")
 
     const parsedYaml = parse(yaml)
-    expect(parsedYaml).toHaveProperty("categories.defaultCategory", "public")
+    expect(parsedYaml).toHaveProperty("categories.defaultCategory", "work")
 
     const result = await loadConfig({
       env: {},
@@ -72,9 +75,13 @@ describe("config schema file", () => {
       readFileFn: vi.fn(async () => yaml),
     })
 
-    expect(result.config.categories.defaultCategory).toBe("public")
+    expect(result.config.categories.defaultCategory).toBe("work")
+    expect(result.config.categories.order).toEqual({
+      work: 10,
+      private: 20,
+    })
     expect(result.config.statuslineCategory.format).toBe("[{category}]")
-    expect(result.config.categories.rules[0]?.category).toBe("work")
+    expect(result.config.categories.rules[0]?.category).toBe("private")
     expect(result.config.categories.sessionNameRules[0]?.patterns).toEqual([
       "local-*",
     ])

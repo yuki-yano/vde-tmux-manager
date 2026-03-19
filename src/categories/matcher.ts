@@ -203,5 +203,48 @@ export const collectDefinedCategories = (
   for (const rule of config.sessionNameRules) {
     categories.add(rule.category)
   }
-  return Array.from(categories).sort()
+  return Array.from(categories)
+}
+
+const toNumericCategory = (value: string): number | null => {
+  if (/^-?\d+$/.test(value.trim()) !== true) {
+    return null
+  }
+
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+export const sortCategories = (
+  categories: ReadonlyArray<string>,
+  order: Readonly<Record<string, number>> = {},
+): string[] => {
+  return [...categories].sort((left, right) => {
+    const leftOrder = order[left]
+    const rightOrder = order[right]
+
+    if (
+      typeof leftOrder === "number" &&
+      typeof rightOrder === "number" &&
+      leftOrder !== rightOrder
+    ) {
+      return leftOrder - rightOrder
+    }
+
+    if (typeof leftOrder === "number") {
+      return -1
+    }
+
+    if (typeof rightOrder === "number") {
+      return 1
+    }
+
+    const leftNumeric = toNumericCategory(left)
+    const rightNumeric = toNumericCategory(right)
+    if (leftNumeric !== null && rightNumeric !== null) {
+      return leftNumeric - rightNumeric
+    }
+
+    return left.localeCompare(right)
+  })
 }

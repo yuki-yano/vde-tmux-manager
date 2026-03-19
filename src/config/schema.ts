@@ -73,6 +73,7 @@ export type SessionNameRuleConfig = {
 
 export type CategoriesConfig = {
   defaultCategory: string
+  order?: Readonly<Record<string, number>>
   rules: readonly CategoryRuleConfig[]
   sessionNameRules: readonly SessionNameRuleConfig[]
 }
@@ -102,6 +103,7 @@ export type PartialConfig = {
   }
   categories?: {
     defaultCategory?: string
+    order?: Record<string, number>
     rules?: Array<{
       category?: string
       ghqPatterns?: string[]
@@ -294,6 +296,36 @@ const parseStringArray = (
     if (parsed !== undefined) {
       result.push(parsed)
     }
+  }
+
+  return result
+}
+
+const parseIntegerRecord = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  required: boolean,
+): Record<string, number> | undefined => {
+  if (value === undefined) {
+    if (required) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (!isRecord(value)) {
+    pushIssue(issues, path, "must be an object")
+    return undefined
+  }
+
+  const result: Record<string, number> = {}
+  for (const [key, rawValue] of Object.entries(value)) {
+    if (typeof rawValue !== "number" || Number.isInteger(rawValue) !== true) {
+      pushIssue(issues, [...path, key], "must be integer")
+      continue
+    }
+    result[key] = rawValue
   }
 
   return result
@@ -1015,7 +1047,7 @@ const parseCategories = (
 
   ensureNoUnknownKeys(
     value,
-    ["defaultCategory", "rules", "sessionNameRules"],
+    ["defaultCategory", "order", "rules", "sessionNameRules"],
     path,
     issues,
   )
@@ -1025,6 +1057,12 @@ const parseCategories = (
     [...path, "defaultCategory"],
     issues,
     requiredFields,
+  )
+  const order = parseIntegerRecord(
+    value.order,
+    [...path, "order"],
+    issues,
+    false,
   )
   const rules = parseCategoryRules(
     value.rules,
@@ -1045,6 +1083,9 @@ const parseCategories = (
   if (defaultCategory !== undefined) {
     partial.defaultCategory = defaultCategory
   }
+  if (order !== undefined) {
+    partial.order = order
+  }
   if (rules !== undefined) {
     partial.rules = rules as NonNullable<PartialConfig["categories"]>["rules"]
   }
@@ -1060,6 +1101,7 @@ const parseCategories = (
     }
     return {
       defaultCategory: partial.defaultCategory,
+      order: partial.order ?? {},
       rules: (partial.rules ?? []).map((rule) => ({
         category: rule?.category ?? "",
         ghqPatterns: rule?.ghqPatterns ?? [],

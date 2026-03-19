@@ -49,6 +49,8 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager kill-pane <target>`
 - `vtm project switch <path>`
 - `vtm category use <name>`
+- `vtm category next`
+- `vtm category prev`
 - `vtm hooks on-client-session-changed [<client-name> <session-name>]`
 - `vtm session-cycle next`
 - `vtm session-cycle prev`
@@ -122,7 +124,11 @@ statuslineSessions:
     otherSuffix: ""
 
 categories:
-  defaultCategory: public
+  defaultCategory: work
+  order:
+    work: 10
+    private: 20
+    oss: 30
   rules:
     - category: work
       ghqPatterns:
@@ -152,6 +158,8 @@ Category resolution order:
 
 Path rules use first-match-wins. For GHQ projects, matching is done against the GHQ-root-relative path such as `github.com/org/repo`. For non-GHQ projects, matching is done against the normalized absolute path, with `~` expanded to `HOME`.
 
+Category names remain strings. Use `categories.order` to assign integer ordering, and `vtm category next` / `vtm category prev` use that order.
+
 When `categories` is omitted, every session belongs to one unnamed category. In that mode, session cycling and statusline session switching continue to operate across all sessions, similar to the pre-category behavior, and `vtm statusline-category` renders nothing.
 
 Schema file:
@@ -177,6 +185,8 @@ Switch the current tmux client category:
 ```tmux
 bind-key C-w run-shell 'vtm category use work'
 bind-key C-p run-shell 'vtm category use private'
+bind-key ] run-shell 'vtm category next'
+bind-key [ run-shell 'vtm category prev'
 ```
 
 `vtm category use <name>` changes the current category for that tmux client, then restores the last active session remembered for that client and category. If no remembered session exists, it switches to the first session in the category. If the category has no sessions, only the category is updated.
