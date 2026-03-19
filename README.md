@@ -103,7 +103,7 @@ sessionManager:
 statuslineCategory:
   format: "[{category}]"
   colors:
-    fg: "#A5A1F2"
+    fg: "#E8ECF3"
     bg: "#352F63"
 
 statuslineSessions:
