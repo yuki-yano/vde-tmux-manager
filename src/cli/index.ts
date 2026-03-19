@@ -1,5 +1,6 @@
 import { basename } from "node:path"
 import { runCategory } from "./commands/category"
+import { runHooks } from "./commands/hooks"
 import { runProject } from "./commands/project"
 import { runSession } from "./commands/session"
 import { runSessionCycle } from "./commands/session-cycle"
@@ -37,6 +38,10 @@ const COMMANDS: readonly CommandHelp[] = [
   {
     name: "category",
     summary: "Manage current tmux client category",
+  },
+  {
+    name: "hooks",
+    summary: "Update client state from tmux hook events",
   },
   {
     name: "project",
@@ -152,6 +157,14 @@ export const createCli = (options: CliOptions = {}): CLI => {
 
       if (command === "project") {
         return await runProject(rest, {
+          programName,
+          stdout,
+          stderr,
+        })
+      }
+
+      if (command === "hooks") {
+        return await runHooks(rest, {
           programName,
           stdout,
           stderr,

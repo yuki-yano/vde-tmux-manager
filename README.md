@@ -49,6 +49,7 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager kill-pane <target>`
 - `vtm project switch <path>`
 - `vtm category use <name>`
+- `vtm hooks on-client-session-changed [<client-name> <session-name>]`
 - `vtm session-cycle next`
 - `vtm session-cycle prev`
 - `vtm session set-category <session> <category>`
@@ -180,6 +181,12 @@ bind-key C-p run-shell 'vtm category use private'
 
 `vtm category use <name>` changes the current category for that tmux client, then restores the last active session remembered for that client and category. If no remembered session exists, it switches to the first session in the category. If the category has no sessions, only the category is updated.
 
+Last-active session timing:
+
+- session switches triggered through `vtm` update the remembered session immediately
+- `vtm category use` first reconciles the tmux client's actual current session before switching away
+- to track plain tmux session switches as well, install the hook below
+
 `statuslineCategory.format` replaces `{category}` with the current category name. If the resolved category is unnamed, the category segment is disabled and prints an empty string.
 
 Cycle sessions only inside the current category:
@@ -194,6 +201,12 @@ Use in statusline:
 ```tmux
 set -g status-left '#(vtm statusline-category) '
 set -g status-right '#(vtm statusline-sessions) #[fg=colour250]| %Y-%m-%d %H:%M'
+```
+
+Track standard tmux session changes so category restore follows the real last active session:
+
+```tmux
+set-hook -g client-session-changed 'run-shell "vtm hooks on-client-session-changed #{client_name} #{session_name}"'
 ```
 
 Show 1-based indexes before session names when needed:

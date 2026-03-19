@@ -49,6 +49,7 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager kill-pane <target>`
 - `vtm project switch <path>`
 - `vtm category use <name>`
+- `vtm hooks on-client-session-changed [<client-name> <session-name>]`
 - `vtm session-cycle next`
 - `vtm session-cycle prev`
 - `vtm session set-category <session> <category>`
@@ -180,6 +181,12 @@ bind-key C-p run-shell 'vtm category use private'
 
 `vtm category use <name>` は、その tmux client の current category を更新したあと、その client でその category 内で最後に見ていた session へ戻ります。記録がなければ category 内の先頭 session に移動し、category に session がなければ category だけ切り替えます。
 
+last active session の記録タイミング:
+
+- `vtm` 経由の session 切替では即座に記録されます
+- `vtm category use` 実行時は、切替前に tmux client の実際の current session を補正反映します
+- tmux 標準操作の session 切替も追跡したい場合は、以下の hook 設定を入れてください
+
 `statuslineCategory.format` では `{category}` が現在の category 名に置換されます。解決後の category が無名なら、category セグメント自体を表示しません。
 
 current category 内だけで session を巡回する:
@@ -194,6 +201,12 @@ statusline で利用する:
 ```tmux
 set -g status-left '#(vtm statusline-category) '
 set -g status-right '#(vtm statusline-sessions) #[fg=colour250]| %Y-%m-%d %H:%M'
+```
+
+tmux 標準の session 切替も last active に反映する:
+
+```tmux
+set-hook -g client-session-changed 'run-shell "vtm hooks on-client-session-changed #{client_name} #{session_name}"'
 ```
 
 必要なときだけ 1 始まりの index を出す:

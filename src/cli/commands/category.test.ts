@@ -21,6 +21,7 @@ describe("runCategory", () => {
 
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
+      currentSession: vi.fn(async () => "repo-a"),
       showClientOption: vi.fn(async (_target: string, option: string) => {
         if (option === "category_last_sessions") {
           return JSON.stringify({

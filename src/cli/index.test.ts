@@ -46,6 +46,7 @@ describe("createCli", () => {
     expect(exitCode).toBe(0)
     expect(stdout.lines.join("\n")).toContain("Usage: vtm <command>")
     expect(stdout.lines.join("\n")).toContain("session-manager")
+    expect(stdout.lines.join("\n")).toContain("hooks")
     expect(stdout.lines.join("\n")).toContain("project")
     expect(stdout.lines.join("\n")).toContain("category")
     expect(stdout.lines.join("\n")).toContain("session-cycle")
@@ -126,6 +127,22 @@ describe("createCli", () => {
     expect(exitCode).toBe(2)
     expect(stderr.lines.join("\n")).toContain(
       "Usage: vtm project switch <path>",
+    )
+  })
+
+  it("shows hooks help", async () => {
+    const stderr = createLineCollector()
+
+    const cli = createCli({
+      programName: "vtm",
+      stderr: stderr.write,
+    })
+
+    const exitCode = await cli.run(["hooks"])
+
+    expect(exitCode).toBe(2)
+    expect(stderr.lines.join("\n")).toContain(
+      "Usage: vtm hooks on-client-session-changed",
     )
   })
 

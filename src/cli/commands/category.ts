@@ -31,6 +31,7 @@ export const runCategory = async (
     readonly tmux?: Pick<
       TmuxClient,
       | "currentClientName"
+      | "currentSession"
       | "setClientOption"
       | "showClientOption"
       | "listSessionDetails"

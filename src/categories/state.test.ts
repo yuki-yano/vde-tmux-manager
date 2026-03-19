@@ -6,6 +6,8 @@ import {
   getCurrentCategory,
   getSessionsInCategory,
   rememberCategoryLastActiveSession,
+  rememberCurrentSessionForCurrentClient,
+  rememberSessionForClient,
   refreshSessionCategories,
   resolveEffectiveSessionCategory,
   switchClientAndRememberSession,
@@ -88,6 +90,7 @@ describe("current category", () => {
   it("switches to the remembered last active session when using a category", async () => {
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
+      currentSession: vi.fn(async () => "repo-a"),
       setClientOption: vi.fn(async () => undefined),
       showClientOption: vi.fn(async (target: string, option: string) => {
         if (option === "category_last_sessions") {
@@ -127,6 +130,7 @@ describe("current category", () => {
   it("falls back to the first session when no remembered session exists", async () => {
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
+      currentSession: vi.fn(async () => "repo-a"),
       setClientOption: vi.fn(async () => undefined),
       showClientOption: vi.fn(async () => ""),
       listSessionDetails: vi.fn(async () => [
@@ -159,6 +163,7 @@ describe("current category", () => {
   it("switches only the category when the category has no sessions", async () => {
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
+      currentSession: vi.fn(async () => ""),
       setClientOption: vi.fn(async () => undefined),
       showClientOption: vi.fn(async () => ""),
       listSessionDetails: vi.fn(async () => []),
@@ -180,6 +185,77 @@ describe("current category", () => {
       "work",
     )
     expect(tmux.switchClient).not.toHaveBeenCalled()
+  })
+})
+
+describe("external session changes", () => {
+  it("records last active state for an explicit client and session", async () => {
+    const tmux = {
+      listSessionDetails: vi.fn(async () => [
+        createSession({
+          id: "$1",
+          name: "private-repo",
+          projectPath: "/tmp/private-repo",
+        }),
+      ]),
+      showClientOption: vi.fn(async () => ""),
+      setClientOption: vi.fn(async () => undefined),
+    }
+
+    const remembered = await rememberSessionForClient({
+      tmux: tmux as never,
+      config,
+      clientName: "/dev/ttys999",
+      sessionName: "private-repo",
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(remembered).toBe("private")
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys999",
+      "current_category",
+      "private",
+    )
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys999",
+      "category_last_sessions",
+      JSON.stringify({
+        private: "private-repo",
+      }),
+    )
+  })
+
+  it("reconciles the real current session before category use", async () => {
+    const tmux = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      currentSession: vi.fn(async () => "private-repo"),
+      listSessionDetails: vi.fn(async () => [
+        createSession({
+          id: "$1",
+          name: "private-repo",
+          projectPath: "/tmp/private-repo",
+        }),
+      ]),
+      showClientOption: vi.fn(async () => ""),
+      setClientOption: vi.fn(async () => undefined),
+    }
+
+    const remembered = await rememberCurrentSessionForCurrentClient({
+      tmux: tmux as never,
+      config,
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(remembered).toBe("private-repo")
+    expect(tmux.setClientOption).toHaveBeenCalledWith(
+      "/dev/ttys001",
+      "category_last_sessions",
+      JSON.stringify({
+        private: "private-repo",
+      }),
+    )
   })
 })
 
@@ -384,6 +460,7 @@ describe("client-scoped last active sessions", () => {
   it("falls back when remembered session no longer exists", async () => {
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
+      currentSession: vi.fn(async () => "deleted-repo"),
       setClientOption: vi.fn(async () => undefined),
       showClientOption: vi.fn(async (_target: string, option: string) => {
         if (option === "category_last_sessions") {
