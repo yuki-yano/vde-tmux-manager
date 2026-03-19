@@ -486,6 +486,98 @@ describe("client-scoped last active sessions", () => {
     expect(target).toBe("repo-a")
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-a")
   })
+
+  it("restores the remembered session when moving back and forth across categories", async () => {
+    const clientState = new Map<string, string>()
+    let currentSession = "dotfiles"
+    const tmux = {
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      currentSession: vi.fn(async () => currentSession),
+      showClientOption: vi.fn(async (target: string, option: string) => {
+        return clientState.get(`${target}:${option}`) ?? ""
+      }),
+      setClientOption: vi.fn(
+        async (target: string, option: string, value: string) => {
+          clientState.set(`${target}:${option}`, value)
+        },
+      ),
+      listSessionDetails: vi.fn(async () => [
+        createSession({
+          id: "$1",
+          name: "dotfiles",
+          projectPath: "/tmp/dotfiles",
+        }),
+        createSession({
+          id: "$2",
+          name: "aws-mcp-bootstrap",
+          projectPath: "/Users/test/ghq/github.com/company/aws-mcp-bootstrap",
+        }),
+        createSession({
+          id: "$3",
+          name: "cse",
+          projectPath: "/Users/test/ghq/github.com/company/cse",
+        }),
+      ]),
+      switchClient: vi.fn(async (target: string) => {
+        currentSession = target
+      }),
+    }
+
+    await rememberSessionForClient({
+      tmux: tmux as never,
+      config,
+      clientName: "/dev/ttys001",
+      sessionName: "dotfiles",
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    await expect(
+      useCategoryAndSwitchToLastSession({
+        tmux: tmux as never,
+        config,
+        categoryName: "work",
+        homeDirectory: "/Users/test",
+        ghqRoot: "/Users/test/ghq",
+      }),
+    ).resolves.toBe("aws-mcp-bootstrap")
+
+    await switchClientAndRememberSession({
+      tmux: tmux as never,
+      config,
+      sessionName: "cse",
+      categoryName: "work",
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    await expect(
+      useCategoryAndSwitchToLastSession({
+        tmux: tmux as never,
+        config,
+        categoryName: "private",
+        homeDirectory: "/Users/test",
+        ghqRoot: "/Users/test/ghq",
+      }),
+    ).resolves.toBe("dotfiles")
+
+    await expect(
+      useCategoryAndSwitchToLastSession({
+        tmux: tmux as never,
+        config,
+        categoryName: "work",
+        homeDirectory: "/Users/test",
+        ghqRoot: "/Users/test/ghq",
+      }),
+    ).resolves.toBe("cse")
+
+    expect(
+      clientState.get(`/dev/ttys001:${categoryLastSessionOption("private")}`),
+    ).toBe("dotfiles")
+    expect(
+      clientState.get(`/dev/ttys001:${categoryLastSessionOption("work")}`),
+    ).toBe("cse")
+  })
 })
 
 describe("switchClientAndRememberSession", () => {

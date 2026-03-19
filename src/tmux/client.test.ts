@@ -1,5 +1,10 @@
 import { createTmuxClient } from "./client"
 
+const clientScopedOptionName = (target: string, name: string): string => {
+  const encoded = Buffer.from(target, "utf8").toString("hex") || "0"
+  return `@client_${encoded}_${name}`
+}
+
 describe("createTmuxClient", () => {
   it("parses list outputs", async () => {
     const runner = vi.fn(async (_command: string, args: readonly string[]) => {
@@ -215,7 +220,12 @@ describe("createTmuxClient", () => {
     )
     expect(runner).toHaveBeenCalledWith(
       "tmux",
-      ["set-option", "-q", "-t", "/dev/ttys001", "@current_category", "work"],
+      [
+        "set-option",
+        "-sq",
+        clientScopedOptionName("/dev/ttys001", "current_category"),
+        "work",
+      ],
       { allowFail: true },
     )
     expect(runner).toHaveBeenCalledWith("tmux", ["attach", "-t", "dev"], {
@@ -225,5 +235,33 @@ describe("createTmuxClient", () => {
     expect(runner).toHaveBeenCalledWith("tmux", ["kill-server"], {
       allowFail: true,
     })
+  })
+
+  it("stores client state in server-scoped user options", async () => {
+    const runner = vi.fn(async () => ({ stdout: "", stderr: "", exitCode: 0 }))
+    const tmux = createTmuxClient({ runner: runner as never })
+
+    await tmux.setClientOption("/dev/ttys001", "current_category", "work")
+    await tmux.showClientOption("/dev/ttys001", "current_category")
+
+    expect(runner).toHaveBeenCalledWith(
+      "tmux",
+      [
+        "set-option",
+        "-sq",
+        clientScopedOptionName("/dev/ttys001", "current_category"),
+        "work",
+      ],
+      { allowFail: true },
+    )
+    expect(runner).toHaveBeenCalledWith(
+      "tmux",
+      [
+        "show-option",
+        "-sqv",
+        clientScopedOptionName("/dev/ttys001", "current_category"),
+      ],
+      { allowFail: true },
+    )
   })
 })

@@ -77,6 +77,14 @@ export const createTmuxClient = ({
 }: {
   readonly runner?: Runner
 } = {}): TmuxClient => {
+  const encodeScopeKey = (value: string): string => {
+    return Buffer.from(value, "utf8").toString("hex") || "0"
+  }
+
+  const toClientStateOptionName = (target: string, name: string): string => {
+    return `@client_${encodeScopeKey(target)}_${name}`
+  }
+
   const run = async (
     args: readonly string[],
     options: RunCommandOptions = {},
@@ -220,7 +228,7 @@ export const createTmuxClient = ({
   }
 
   const showGlobalOption = async (name: string): Promise<string> => {
-    const result = await run(["show-option", "-gqv", `@${name}`], {
+    const result = await run(["show-option", "-sqv", `@${name}`], {
       allowFail: true,
     })
     return result.stdout.trim()
@@ -259,9 +267,12 @@ export const createTmuxClient = ({
     target: string,
     name: string,
   ): Promise<string> => {
-    const result = await run(["show-option", "-qv", "-t", target, `@${name}`], {
-      allowFail: true,
-    })
+    const result = await run(
+      ["show-option", "-sqv", toClientStateOptionName(target, name)],
+      {
+        allowFail: true,
+      },
+    )
     return result.stdout.trim()
   }
 
@@ -270,9 +281,12 @@ export const createTmuxClient = ({
     name: string,
     value: string,
   ): Promise<void> => {
-    await run(["set-option", "-q", "-t", target, `@${name}`, value], {
-      allowFail: true,
-    })
+    await run(
+      ["set-option", "-sq", toClientStateOptionName(target, name), value],
+      {
+        allowFail: true,
+      },
+    )
   }
 
   const switchClient = async (target: string): Promise<void> => {

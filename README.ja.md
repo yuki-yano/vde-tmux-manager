@@ -196,6 +196,7 @@ last active session の記録タイミング:
 - `vtm` 経由の session 切替では即座に記録されます
 - `vtm category use` 実行時は、切替前に tmux client の実際の current session を補正反映します
 - tmux 標準操作の session 切替も追跡したい場合は、以下の hook 設定を入れてください
+- client ごとの category state は、client 名を埋め込んだ tmux server-scoped user option に保存されるため、同一 client 上の session 切替では失われません
 
 `statuslineCategory.format` では `{category}` が現在の category 名に置換されます。解決後の category が無名なら、category セグメント自体を表示しません。
 

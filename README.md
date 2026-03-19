@@ -196,6 +196,7 @@ Last-active session timing:
 - session switches triggered through `vtm` update the remembered session immediately
 - `vtm category use` first reconciles the tmux client's actual current session before switching away
 - to track plain tmux session switches as well, install the hook below
+- client-scoped category state is stored in tmux server-scoped user options keyed by client name, so it survives session switches on the same client
 
 `statuslineCategory.format` replaces `{category}` with the current category name. If the resolved category is unnamed, the category segment is disabled and prints an empty string.
 
