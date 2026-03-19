@@ -131,6 +131,62 @@ describe("loadConfig", () => {
     expect(result.config.categories.sessionNameRules).toEqual([])
   })
 
+  it("expands environment variables in category patterns", async () => {
+    const yaml = [
+      "categories:",
+      "  rules:",
+      "    - category: work",
+      "      ghqPatterns:",
+      '        - github.com/${WORK_GHQ_OWNER}/*',
+      '        - github.com/${WORK_GHQ_OWNER}/**',
+      "      pathPatterns:",
+      '        - /work/${WORK_GHQ_OWNER}/**',
+      "",
+    ].join("\n")
+
+    const readFileFn = vi.fn(async (): Promise<string> => yaml)
+    const result = await loadConfig({
+      env: { WORK_GHQ_OWNER: "kaizenplatform" },
+      homeDirectory: "/tmp/home",
+      readFileFn,
+    })
+
+    expect(result.loaded).toBe(true)
+    expect(result.config.categories.rules).toEqual([
+      {
+        category: "work",
+        ghqPatterns: [
+          "github.com/kaizenplatform/*",
+          "github.com/kaizenplatform/**",
+        ],
+        pathPatterns: ["/work/kaizenplatform/**"],
+      },
+    ])
+  })
+
+  it("throws ConfigValidationError when category pattern references an undefined environment variable", async () => {
+    const yaml = [
+      "categories:",
+      "  rules:",
+      "    - category: work",
+      "      ghqPatterns:",
+      '        - github.com/${WORK_GHQ_OWNER}/**',
+      "",
+    ].join("\n")
+
+    const readFileFn = vi.fn(async (): Promise<string> => yaml)
+
+    await expect(
+      loadConfig({
+        env: {},
+        homeDirectory: "/tmp/home",
+        readFileFn,
+      }),
+    ).rejects.toThrow(
+      "categories.rules.0.ghqPatterns.0: environment variable WORK_GHQ_OWNER is not defined",
+    )
+  })
+
   it("defaults to an unnamed category when categories are not configured", async () => {
     const readFileFn = vi.fn(async (): Promise<string> => "")
     const result = await loadConfig({
@@ -175,6 +231,38 @@ describe("loadConfig", () => {
     expect(result.config.categories.rules[0]?.category).toBe("private")
   })
 
+  it("ignores unknown config keys", async () => {
+    const yaml = [
+      "unknownTopLevel: true",
+      "categories:",
+      "  defaultCategory: work",
+      "  unknownNested: ignored",
+      "  rules:",
+      "    - category: work",
+      "      ghqPatterns:",
+      "        - github.com/company/**",
+      "      unknownRuleKey: ignored",
+      "",
+    ].join("\n")
+
+    const readFileFn = vi.fn(async (): Promise<string> => yaml)
+    const result = await loadConfig({
+      env: {},
+      homeDirectory: "/tmp/home",
+      readFileFn,
+    })
+
+    expect(result.loaded).toBe(true)
+    expect(result.config.categories.defaultCategory).toBe("work")
+    expect(result.config.categories.rules).toEqual([
+      {
+        category: "work",
+        ghqPatterns: ["github.com/company/**"],
+        pathPatterns: [],
+      },
+    ])
+  })
+
   it("throws ConfigValidationError for invalid YAML", async () => {
     const readFileFn = vi.fn(async (): Promise<string> => "sessionManager: [")
 
@@ -187,15 +275,4 @@ describe("loadConfig", () => {
     ).rejects.toBeInstanceOf(ConfigValidationError)
   })
 
-  it("throws ConfigValidationError for unknown keys", async () => {
-    const readFileFn = vi.fn(async (): Promise<string> => "unknownKey: true")
-
-    await expect(
-      loadConfig({
-        env: {},
-        homeDirectory: "/tmp/home",
-        readFileFn,
-      }),
-    ).rejects.toBeInstanceOf(ConfigValidationError)
-  })
 })

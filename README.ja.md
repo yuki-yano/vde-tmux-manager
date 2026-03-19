@@ -133,8 +133,8 @@ categories:
   rules:
     - category: work
       ghqPatterns:
-        - github.com/xxx-company/*
-        - github.com/xxx-company/**
+        - github.com/${WORK_GHQ_OWNER}/*
+        - github.com/${WORK_GHQ_OWNER}/**
     - category: private
       pathPatterns:
         - ~/dotfiles
@@ -158,6 +158,10 @@ category 判定順序:
 4. `defaultCategory`
 
 path rule は上から順に first-match-wins です。GHQ 配下は `github.com/org/repo` のような GHQ root 相対 path に対して `ghqPatterns` を評価し、非 GHQ path は `~` 展開後の絶対 path に対して `pathPatterns` を評価します。
+
+`ghqPatterns` と `pathPatterns` では、config load 時に `${VAR_NAME}` 形式の環境変数展開を使えます。たとえば `WORK_GHQ_OWNER=acme-inc` なら、`github.com/${WORK_GHQ_OWNER}/*` は `github.com/acme-inc/*` に展開されます。未定義の環境変数を参照した場合は設定エラーになります。固定文字列だけの既存パターンはそのまま動作します。
+
+想定外の設定キーは config load 時に無視されるため、余分なキーがあっても `vtm` は起動エラーになりません。
 
 category 名は文字列のまま使い、整数順は `categories.order` で別に定義します。`vtm category next` / `vtm category prev` はその順序で切り替えます。
 

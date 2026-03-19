@@ -133,8 +133,8 @@ categories:
   rules:
     - category: work
       ghqPatterns:
-        - github.com/xxx-company/*
-        - github.com/xxx-company/**
+        - github.com/${WORK_GHQ_OWNER}/*
+        - github.com/${WORK_GHQ_OWNER}/**
     - category: private
       pathPatterns:
         - ~/dotfiles
@@ -158,6 +158,10 @@ Category resolution order:
 4. `defaultCategory`
 
 Path rules use first-match-wins. For GHQ projects, matching is done against the GHQ-root-relative path such as `github.com/org/repo`. For non-GHQ projects, matching is done against the normalized absolute path, with `~` expanded to `HOME`.
+
+`ghqPatterns` and `pathPatterns` support `${VAR_NAME}` environment variable expansion at config load time. For example, with `WORK_GHQ_OWNER=acme-inc`, `github.com/${WORK_GHQ_OWNER}/*` resolves to `github.com/acme-inc/*`. Referencing an undefined environment variable is treated as a config error. Existing fixed-string patterns continue to work unchanged.
+
+Unknown config keys are ignored during config loading so newer or extra keys do not make `vtm` fail at startup.
 
 Category names remain strings. Use `categories.order` to assign integer ordering, and `vtm category next` / `vtm category prev` use that order.
 

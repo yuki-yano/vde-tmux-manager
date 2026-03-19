@@ -3,7 +3,6 @@
   "$id": "https://raw.githubusercontent.com/yuki-yano/vde-tmux-manager/refs/heads/main/schemas/config.schema.json",
   "title": "vde-tmux-manager config",
   "type": "object",
-  "additionalProperties": false,
   "properties": {
     "ghqRoot": {
       "type": "string",
@@ -13,11 +12,9 @@
     "sessionManager": {
       "type": "object",
       "description": "Settings for the interactive tmux session manager.",
-      "additionalProperties": false,
       "properties": {
         "popup": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "enabled": {
               "type": "boolean",
@@ -37,7 +34,6 @@
         },
         "fzf": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "prompt": {
               "type": "string",
@@ -63,7 +59,6 @@
         },
         "preview": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "sessionCaptureLines": {
               "type": "integer",
@@ -79,7 +74,6 @@
         },
         "kill": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "sendCtrlC": {
               "type": "boolean",
@@ -102,7 +96,6 @@
     "statuslineCategory": {
       "type": "object",
       "description": "Rendering options for the tmux statusline category segment.",
-      "additionalProperties": false,
       "properties": {
         "format": {
           "type": "string",
@@ -110,7 +103,6 @@
         },
         "colors": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "fg": {
               "type": "string",
@@ -129,7 +121,6 @@
     "statuslineSessions": {
       "type": "object",
       "description": "Rendering options for the tmux statusline session segment.",
-      "additionalProperties": false,
       "properties": {
         "showIndex": {
           "type": "boolean",
@@ -137,7 +128,6 @@
         },
         "colors": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "baseFg": {
               "type": "string",
@@ -168,7 +158,6 @@
         },
         "fonts": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "currentPrefix": {
               "type": "string",
@@ -193,7 +182,6 @@
     "categories": {
       "type": "object",
       "description": "Category rules used to group tmux sessions by project path or session name.",
-      "additionalProperties": false,
       "properties": {
         "defaultCategory": {
           "type": "string",
@@ -211,7 +199,6 @@
           "description": "Path-based rules evaluated from top to bottom. First match wins.",
           "items": {
             "type": "object",
-            "additionalProperties": false,
             "required": ["category"],
             "properties": {
               "category": {
@@ -221,7 +208,7 @@
               },
               "ghqPatterns": {
                 "type": "array",
-                "description": "Glob patterns matched against a GHQ-root-relative path such as github.com/org/repo.",
+                "description": "Glob patterns matched against a GHQ-root-relative path such as github.com/org/repo. `${VAR_NAME}` is expanded from the environment at config load time.",
                 "items": {
                   "type": "string",
                   "minLength": 1
@@ -229,7 +216,7 @@
               },
               "pathPatterns": {
                 "type": "array",
-                "description": "Glob patterns matched against an absolute normalized path. `~` is expanded to HOME before matching.",
+                "description": "Glob patterns matched against an absolute normalized path. `~` is expanded to HOME before matching, and `${VAR_NAME}` is expanded from the environment at config load time.",
                 "items": {
                   "type": "string",
                   "minLength": 1
@@ -247,7 +234,6 @@
           "description": "Exception rules evaluated from top to bottom when path-based matching did not apply.",
           "items": {
             "type": "object",
-            "additionalProperties": false,
             "required": ["category", "patterns"],
             "properties": {
               "category": {

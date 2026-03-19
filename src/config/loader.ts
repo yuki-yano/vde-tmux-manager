@@ -37,8 +37,13 @@ type LoadConfigInput = {
   ) => Promise<string>
 }
 
+type ConfigIssue = {
+  path: ReadonlyArray<PropertyKey>
+  message: string
+}
+
 const formatIssues = (
-  issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
+  issues: ReadonlyArray<ConfigIssue>,
 ): string => {
   return issues
     .map((issue) => {
@@ -49,6 +54,106 @@ const formatIssues = (
       return `${path}: ${issue.message}`
     })
     .join(", ")
+}
+
+const ENV_VARIABLE_PATTERN = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g
+
+const expandConfigPattern = ({
+  value,
+  env,
+  path,
+}: {
+  readonly value: string
+  readonly env: NodeJS.ProcessEnv
+  readonly path: ReadonlyArray<PropertyKey>
+}): { success: true; value: string } | { success: false; issue: ConfigIssue } => {
+  let missingVariable: string | null = null
+  const expanded = value.replaceAll(ENV_VARIABLE_PATTERN, (_, variable) => {
+    const resolved = env[variable]
+    if (resolved === undefined) {
+      missingVariable = variable
+      return ""
+    }
+    return resolved
+  })
+
+  if (missingVariable !== null) {
+    return {
+      success: false,
+      issue: {
+        path,
+        message: `environment variable ${missingVariable} is not defined`,
+      },
+    }
+  }
+
+  return {
+    success: true,
+    value: expanded,
+  }
+}
+
+const expandCategoryRulePatterns = ({
+  partial,
+  env,
+  path,
+}: {
+  readonly partial: PartialConfig
+  readonly env: NodeJS.ProcessEnv
+  readonly path: string
+}): PartialConfig => {
+  const issues: ConfigIssue[] = []
+
+  const rules = partial.categories?.rules?.map((rule, ruleIndex) => {
+    const ghqPatterns = rule.ghqPatterns?.map((pattern, patternIndex) => {
+      const result = expandConfigPattern({
+        value: pattern,
+        env,
+        path: ["categories", "rules", ruleIndex, "ghqPatterns", patternIndex],
+      })
+      if (result.success !== true) {
+        issues.push(result.issue)
+        return pattern
+      }
+      return result.value
+    })
+
+    const pathPatterns = rule.pathPatterns?.map((pattern, patternIndex) => {
+      const result = expandConfigPattern({
+        value: pattern,
+        env,
+        path: ["categories", "rules", ruleIndex, "pathPatterns", patternIndex],
+      })
+      if (result.success !== true) {
+        issues.push(result.issue)
+        return pattern
+      }
+      return result.value
+    })
+
+    return {
+      ...rule,
+      ...(ghqPatterns !== undefined ? { ghqPatterns } : {}),
+      ...(pathPatterns !== undefined ? { pathPatterns } : {}),
+    }
+  })
+
+  if (issues.length > 0) {
+    throw new ConfigValidationError(
+      `Invalid config (${path}): ${formatIssues(issues)}`,
+    )
+  }
+
+  return {
+    ...partial,
+    categories:
+      partial.categories === undefined
+        ? undefined
+        : {
+            ...partial.categories,
+            ...(rules !== undefined ? { rules } : {}),
+          },
+  }
 }
 
 const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
@@ -136,7 +241,15 @@ export const resolveConfigPath = ({
   return join(baseDirectory, CONFIG_DIRECTORY, CONFIG_BASENAME)
 }
 
-const parseYamlConfig = (source: string, path: string): PartialConfig => {
+const parseYamlConfig = ({
+  source,
+  path,
+  env,
+}: {
+  readonly source: string
+  readonly path: string
+  readonly env: NodeJS.ProcessEnv
+}): PartialConfig => {
   let parsed: unknown
   try {
     parsed = parse(source)
@@ -155,7 +268,11 @@ const parseYamlConfig = (source: string, path: string): PartialConfig => {
     )
   }
 
-  return partialResult.data
+  return expandCategoryRulePatterns({
+    partial: partialResult.data,
+    env,
+    path,
+  })
 }
 
 export const loadConfig = async ({
@@ -185,7 +302,7 @@ export const loadConfig = async ({
     }
   }
 
-  const partial = parseYamlConfig(source, path)
+  const partial = parseYamlConfig({ source, path, env })
   const merged = mergeConfig(partial)
   const resolvedResult = validateResolvedConfig(merged)
   if (!resolvedResult.success) {

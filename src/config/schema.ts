@@ -153,18 +153,12 @@ const pushIssue = (
 }
 
 const ensureNoUnknownKeys = (
-  record: Record<string, unknown>,
-  allowedKeys: string[],
-  path: ReadonlyArray<PropertyKey>,
-  issues: ValidationIssue[],
+  _record: Record<string, unknown>,
+  _allowedKeys: string[],
+  _path: ReadonlyArray<PropertyKey>,
+  _issues: ValidationIssue[],
 ): void => {
-  const allowed = new Set(allowedKeys)
-  for (const key of Object.keys(record)) {
-    if (allowed.has(key)) {
-      continue
-    }
-    pushIssue(issues, [...path, key], "unknown key")
-  }
+  // Unknown keys are ignored so forward-compatible configs do not fail at load.
 }
 
 const parseBoolean = (
