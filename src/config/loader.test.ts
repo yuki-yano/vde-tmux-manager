@@ -137,10 +137,10 @@ describe("loadConfig", () => {
       "  rules:",
       "    - category: work",
       "      ghqPatterns:",
-      '        - github.com/${WORK_GHQ_OWNER}/*',
-      '        - github.com/${WORK_GHQ_OWNER}/**',
+      "        - github.com/${WORK_GHQ_OWNER}/*",
+      "        - github.com/${WORK_GHQ_OWNER}/**",
       "      pathPatterns:",
-      '        - /work/${WORK_GHQ_OWNER}/**',
+      "        - /work/${WORK_GHQ_OWNER}/**",
       "",
     ].join("\n")
 
@@ -170,7 +170,7 @@ describe("loadConfig", () => {
       "  rules:",
       "    - category: work",
       "      ghqPatterns:",
-      '        - github.com/${WORK_GHQ_OWNER}/**',
+      "        - github.com/${WORK_GHQ_OWNER}/**",
       "",
     ].join("\n")
 
@@ -274,5 +274,4 @@ describe("loadConfig", () => {
       }),
     ).rejects.toBeInstanceOf(ConfigValidationError)
   })
-
 })

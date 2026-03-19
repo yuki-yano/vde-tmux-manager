@@ -42,9 +42,7 @@ type ConfigIssue = {
   message: string
 }
 
-const formatIssues = (
-  issues: ReadonlyArray<ConfigIssue>,
-): string => {
+const formatIssues = (issues: ReadonlyArray<ConfigIssue>): string => {
   return issues
     .map((issue) => {
       const path =
@@ -66,7 +64,9 @@ const expandConfigPattern = ({
   readonly value: string
   readonly env: NodeJS.ProcessEnv
   readonly path: ReadonlyArray<PropertyKey>
-}): { success: true; value: string } | { success: false; issue: ConfigIssue } => {
+}):
+  | { success: true; value: string }
+  | { success: false; issue: ConfigIssue } => {
   let missingVariable: string | null = null
   const expanded = value.replaceAll(ENV_VARIABLE_PATTERN, (_, variable) => {
     const resolved = env[variable]
