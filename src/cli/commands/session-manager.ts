@@ -735,7 +735,7 @@ const runSelection = async ({
   }
 
   const homeDirectory = env.HOME ?? process.env.HOME ?? ""
-  const ghqRoot = await resolveGhqRoot({ env, runner })
+  const ghqRoot = await resolveGhqRoot({ config, env, runner })
 
   if (parsed.action === "session") {
     if (typeof env.TMUX === "string" && env.TMUX.length > 0) {
@@ -846,7 +846,7 @@ export const runSessionManager = async (
 
   const inTmux = typeof env.TMUX === "string" && env.TMUX.length > 0
   const currentCategory = await getCurrentCategory({ tmux, config })
-  const ghqRoot = await resolveGhqRoot({ env })
+  const ghqRoot = await resolveGhqRoot({ config, env })
   const sessions = await collectSessions({
     tmux,
     inTmux,

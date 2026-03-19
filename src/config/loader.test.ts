@@ -42,6 +42,7 @@ describe("loadConfig", () => {
 
   it("merges partial YAML values with defaults", async () => {
     const yaml = [
+      'ghqRoot: "/tmp/ghq"',
       "sessionManager:",
       "  fzf:",
       '    prompt: "custom> "',
@@ -61,6 +62,7 @@ describe("loadConfig", () => {
     })
 
     expect(result.loaded).toBe(true)
+    expect(result.config.ghqRoot).toBe("/tmp/ghq")
     expect(result.config.sessionManager.fzf.prompt).toBe("custom> ")
     expect(result.config.sessionManager.fzf.border).toBe(
       DEFAULT_CONFIG.sessionManager.fzf.border,
@@ -138,6 +140,7 @@ describe("loadConfig", () => {
     })
 
     expect(result.loaded).toBe(true)
+    expect(result.config.ghqRoot).toBeNull()
     expect(result.config.categories.defaultCategory).toBe("")
     expect(result.config.categories.rules).toEqual([])
     expect(result.config.categories.sessionNameRules).toEqual([])

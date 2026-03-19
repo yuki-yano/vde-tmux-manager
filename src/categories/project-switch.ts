@@ -2,6 +2,7 @@ import { stat } from "node:fs/promises"
 import { basename, dirname, resolve } from "node:path"
 import { homedir } from "node:os"
 import type { ResolvedConfig } from "../config/schema"
+import { resolveGhqRoot } from "./runtime"
 import {
   runCommand,
   type RunCommandOptions,
@@ -39,26 +40,6 @@ const resolveGitRoot = async ({
     "rev-parse",
     "--show-toplevel",
   ])
-  if (result.exitCode !== 0) {
-    return null
-  }
-  const root = result.stdout.trim()
-  return root.length > 0 ? root : null
-}
-
-const resolveGhqRoot = async ({
-  env,
-  runner,
-}: {
-  readonly env: NodeJS.ProcessEnv
-  readonly runner: Runner
-}): Promise<string | null> => {
-  const fromEnv = env.GHQ_ROOT?.trim()
-  if (typeof fromEnv === "string" && fromEnv.length > 0) {
-    return fromEnv
-  }
-
-  const result = await runner("ghq", ["root"])
   if (result.exitCode !== 0) {
     return null
   }
@@ -124,6 +105,7 @@ export const switchProjectSession = async ({
   })
   const projectPath = gitRoot ?? normalizedInputPath
   const ghqRoot = await resolveGhqRoot({
+    config,
     env,
     runner: async (command, args) =>
       runner(command, args, {

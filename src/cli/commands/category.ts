@@ -53,10 +53,8 @@ export const runCategory = async (
       return EXIT_CODE_USAGE
     }
 
-    const [{ config }, ghqRoot] = await Promise.all([
-      loadConfigFn(),
-      resolveGhqRoot({ env }),
-    ])
+    const { config } = await loadConfigFn()
+    const ghqRoot = await resolveGhqRoot({ config, env })
     const currentCategory = await getCurrentCategory({ tmux, config })
     await useCategoryAndSwitchToLastSession({
       tmux,
@@ -77,10 +75,8 @@ export const runCategory = async (
     return EXIT_CODE_USAGE
   }
 
-  const [{ config }, ghqRoot] = await Promise.all([
-    loadConfigFn(),
-    resolveGhqRoot({ env }),
-  ])
+  const { config } = await loadConfigFn()
+  const ghqRoot = await resolveGhqRoot({ config, env })
   await useCategoryAndSwitchToLastSession({
     tmux,
     config,

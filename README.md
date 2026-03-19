@@ -85,6 +85,7 @@ Example:
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/yuki-yano/vde-tmux-manager/refs/heads/main/schemas/config.schema.json
+ghqRoot: "/Users/you/ghq"
 sessionManager:
   popup:
     enabled: true
@@ -266,4 +267,5 @@ This replaces your existing right-click menu with a minimal kill-focused menu.
 - If `session-manager` does not open, verify `tmux` and `fzf` are available in `PATH`.
 - If clean kill behavior is incomplete, verify `ps` and `kill` are available.
 - If repo metadata is empty in preview, verify the pane path is inside a Git repository.
-- If category matching looks wrong, verify `GHQ_ROOT` / `ghq root`, then run `vtm sessions refresh-category`.
+- If your GHQ root is fixed, set `ghqRoot` in config to avoid calling `ghq root` on every command.
+- If category matching looks wrong, verify `ghqRoot` / `GHQ_ROOT` / `ghq root`, then run `vtm sessions refresh-category`.

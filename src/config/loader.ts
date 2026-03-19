@@ -53,6 +53,7 @@ const formatIssues = (
 
 const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
   return {
+    ghqRoot: partial.ghqRoot ?? DEFAULT_CONFIG.ghqRoot,
     sessionManager: {
       popup: {
         ...DEFAULT_CONFIG.sessionManager.popup,

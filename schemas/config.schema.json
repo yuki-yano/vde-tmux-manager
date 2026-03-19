@@ -5,6 +5,11 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "ghqRoot": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Fixed GHQ root path. When set, vde-tmux-manager will not call `ghq root`."
+    },
     "sessionManager": {
       "type": "object",
       "description": "Settings for the interactive tmux session manager.",

@@ -244,11 +244,11 @@ export const runStatuslineSessions = async (
       return EXIT_CODE_USAGE
     }
 
-    const [{ config }, ghqRoot, clientName] = await Promise.all([
+    const [{ config }, clientName] = await Promise.all([
       loadConfigFn(),
-      resolveGhqRoot({ env }),
       tmux.currentClientName(),
     ])
+    const ghqRoot = await resolveGhqRoot({ config, env })
     const { currentCategory, sessionDetails } =
       await readCurrentCategoryAndSessionDetails({
         tmux,
@@ -315,10 +315,8 @@ export const runStatuslineSessions = async (
     return EXIT_CODE_USAGE
   }
 
-  const [{ config }, ghqRoot] = await Promise.all([
-    loadConfigFn(),
-    resolveGhqRoot({ env }),
-  ])
+  const { config } = await loadConfigFn()
+  const ghqRoot = await resolveGhqRoot({ config, env })
   const currentCategory = await getCurrentCategory({ tmux, config })
   const [sessionDetails, currentSession] = await Promise.all([
     tmux.listSessionDetails(),

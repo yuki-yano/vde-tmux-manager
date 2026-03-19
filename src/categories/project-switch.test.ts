@@ -170,4 +170,69 @@ describe("switchProjectSession", () => {
       repoPath,
     )
   })
+
+  it("uses configured ghqRoot without calling ghq root", async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), "vtm-project-switch-config-"))
+    const ghqRoot = join(tempRoot, "ghq")
+    const repoPath = join(ghqRoot, "github.com", "company", "repo-a")
+    await mkdir(repoPath, { recursive: true })
+    await writeFile(join(repoPath, ".git"), "", "utf8")
+
+    const tmux = {
+      listSessionDetails: vi.fn(async () => []),
+      currentClientName: vi.fn(async () => "/dev/ttys001"),
+      showClientOption: vi.fn(async () => "public"),
+      setClientOption: vi.fn(async () => undefined),
+      newSessionDetachedNamed: vi.fn(async () => undefined),
+      setSessionOption: vi.fn(async () => undefined),
+      switchClient: vi.fn(async () => undefined),
+      newSessionInteractiveNamed: vi.fn(async () => undefined),
+    }
+    const runner = vi.fn(async (command: string, args: readonly string[]) => {
+      if (
+        command === "git" &&
+        args[0] === "-C" &&
+        args[2] === "rev-parse" &&
+        args[3] === "--show-toplevel"
+      ) {
+        return {
+          stdout: `${repoPath}\n`,
+          stderr: "",
+          exitCode: 0,
+        }
+      }
+
+      return {
+        stdout: "",
+        stderr: "",
+        exitCode: 1,
+      }
+    })
+
+    const result = await switchProjectSession({
+      tmux: tmux as never,
+      config: {
+        ...DEFAULT_CONFIG,
+        ghqRoot,
+        categories: {
+          defaultCategory: "public",
+          rules: [
+            {
+              category: "work",
+              ghqPatterns: ["github.com/company/**"],
+              pathPatterns: [],
+            },
+          ],
+          sessionNameRules: [],
+        },
+      },
+      inputPath: repoPath,
+      env: { TMUX: "1", HOME: tempRoot },
+      homeDirectory: tempRoot,
+      runner: runner as never,
+    })
+
+    expect(result.category).toBe("work")
+    expect(runner).not.toHaveBeenCalledWith("ghq", ["root"], expect.anything())
+  })
 })

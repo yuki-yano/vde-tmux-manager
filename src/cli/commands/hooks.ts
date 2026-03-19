@@ -50,7 +50,7 @@ export const runHooks = async (
 
   const { config } = await loadConfigFn()
   const homeDirectory = env.HOME ?? homedir()
-  const ghqRoot = await resolveGhqRoot({ env })
+  const ghqRoot = await resolveGhqRoot({ config, env })
 
   if (args.length === 1) {
     await rememberCurrentSessionForCurrentClient({

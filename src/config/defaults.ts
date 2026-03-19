@@ -6,6 +6,7 @@ export const DEFAULT_SESSION_CAPTURE_LINES = 15
 export const DEFAULT_PANE_CAPTURE_LINES = 16
 
 export const DEFAULT_CONFIG: ResolvedConfig = {
+  ghqRoot: null,
   sessionManager: {
     popup: {
       enabled: true,

@@ -13,8 +13,10 @@ describe("config schema file", () => {
     expect(schema.properties).toHaveProperty("statuslineCategory")
     expect(schema.properties).toHaveProperty("statuslineSessions")
     expect(schema.properties).toHaveProperty("categories")
+    expect(schema.properties).toHaveProperty("ghqRoot")
 
     const yaml = [
+      'ghqRoot: "/tmp/ghq"',
       "sessionManager:",
       "  popup:",
       "    enabled: true",
@@ -76,6 +78,7 @@ describe("config schema file", () => {
     })
 
     expect(result.config.categories.defaultCategory).toBe("work")
+    expect(result.config.ghqRoot).toBe("/tmp/ghq")
     expect(result.config.categories.order).toEqual({
       work: 10,
       private: 20,

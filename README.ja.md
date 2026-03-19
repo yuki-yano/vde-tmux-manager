@@ -85,6 +85,7 @@ pnpm add -g vde-tmux-manager
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/yuki-yano/vde-tmux-manager/refs/heads/main/schemas/config.schema.json
+ghqRoot: "/Users/you/ghq"
 sessionManager:
   popup:
     enabled: true
@@ -266,4 +267,5 @@ bind-key -n MouseDown3Pane display-menu -T "Pane #{pane_index}" -t = -x M -y M \
 - `session-manager` が開かない場合は、`tmux` と `fzf` が `PATH` にあるか確認してください。
 - clean kill が期待通りに動かない場合は、`ps` と `kill` コマンドの有無を確認してください。
 - プレビューのリポジトリ情報が空の場合は、pane の現在パスが Git リポジトリ配下か確認してください。
-- category 判定が意図とずれる場合は、`GHQ_ROOT` / `ghq root` を確認し、`vtm sessions refresh-category` を実行してください。
+- GHQ root が固定なら、config に `ghqRoot` を設定すると毎回 `ghq root` を呼ばなくなります。
+- category 判定が意図とずれる場合は、`ghqRoot` / `GHQ_ROOT` / `ghq root` を確認し、`vtm sessions refresh-category` を実行してください。

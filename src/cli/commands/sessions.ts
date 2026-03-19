@@ -45,7 +45,7 @@ export const runSessions = async (
     tmux,
     config,
     homeDirectory: env.HOME ?? homedir(),
-    ghqRoot: await resolveGhqRoot({ env }),
+    ghqRoot: await resolveGhqRoot({ config, env }),
   })
   return EXIT_CODE_OK
 }

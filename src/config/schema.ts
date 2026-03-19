@@ -79,6 +79,7 @@ export type CategoriesConfig = {
 }
 
 export type ResolvedConfig = {
+  ghqRoot: string | null
   sessionManager: SessionManagerConfig
   statuslineCategory: StatuslineCategoryConfig
   statuslineSessions: StatuslineSessionsConfig
@@ -86,6 +87,7 @@ export type ResolvedConfig = {
 }
 
 export type PartialConfig = {
+  ghqRoot?: string | null
   sessionManager?: {
     popup?: Partial<SessionManagerPopupConfig>
     fzf?: Partial<SessionManagerFzfConfig>
@@ -224,6 +226,19 @@ const parseNonEmptyString = (
   }
 
   return parsed
+}
+
+const parseNullableNonEmptyString = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  required: boolean,
+): string | null | undefined => {
+  if (value === null) {
+    return null
+  }
+
+  return parseNonEmptyString(value, path, issues, required)
 }
 
 const parseDimension = (
@@ -1346,6 +1361,7 @@ export const validatePartialConfig = (
   ensureNoUnknownKeys(
     input,
     [
+      "ghqRoot",
       "sessionManager",
       "statuslineCategory",
       "statuslineSessions",
@@ -1355,6 +1371,12 @@ export const validatePartialConfig = (
     issues,
   )
 
+  const ghqRoot = parseNullableNonEmptyString(
+    input.ghqRoot,
+    ["ghqRoot"],
+    issues,
+    false,
+  )
   const sessionManager = parseSessionManager(
     input.sessionManager,
     ["sessionManager"],
@@ -1389,6 +1411,9 @@ export const validatePartialConfig = (
   }
 
   const partial: PartialConfig = {}
+  if (ghqRoot !== undefined) {
+    partial.ghqRoot = ghqRoot
+  }
   if (sessionManager !== undefined) {
     partial.sessionManager = sessionManager as PartialConfig["sessionManager"]
   }
@@ -1422,6 +1447,7 @@ export const validateResolvedConfig = (
   ensureNoUnknownKeys(
     input,
     [
+      "ghqRoot",
       "sessionManager",
       "statuslineCategory",
       "statuslineSessions",
@@ -1431,6 +1457,12 @@ export const validateResolvedConfig = (
     issues,
   )
 
+  const ghqRoot = parseNullableNonEmptyString(
+    input.ghqRoot,
+    ["ghqRoot"],
+    issues,
+    false,
+  )
   const sessionManager = parseSessionManager(
     input.sessionManager,
     ["sessionManager"],
@@ -1473,6 +1505,7 @@ export const validateResolvedConfig = (
   return {
     success: true,
     data: {
+      ghqRoot: ghqRoot ?? null,
       sessionManager: sessionManager as SessionManagerConfig,
       statuslineCategory: statuslineCategory as StatuslineCategoryConfig,
       statuslineSessions: statuslineSessions as StatuslineSessionsConfig,
