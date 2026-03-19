@@ -10,8 +10,8 @@ import {
   type ResolvedConfig,
 } from "./schema"
 
-const CONFIG_DIRECTORY = "vde-tmux-manager"
-const CONFIG_BASENAME = "config.yaml"
+const CONFIG_DIRECTORY = join("vde", "tmux-manager")
+const CONFIG_BASENAME = "config.yml"
 
 export class ConfigValidationError extends Error {
   readonly code = "CONFIG_INVALID"

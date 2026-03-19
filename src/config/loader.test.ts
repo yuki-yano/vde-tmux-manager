@@ -8,7 +8,7 @@ describe("resolveConfigPath", () => {
       homeDirectory: "/tmp/home",
     })
 
-    expect(path).toBe("/tmp/xdg/vde-tmux-manager/config.yaml")
+    expect(path).toBe("/tmp/xdg/vde/tmux-manager/config.yml")
   })
 
   it("falls back to HOME/.config", () => {
@@ -17,7 +17,7 @@ describe("resolveConfigPath", () => {
       homeDirectory: "/tmp/home",
     })
 
-    expect(path).toBe("/tmp/home/.config/vde-tmux-manager/config.yaml")
+    expect(path).toBe("/tmp/home/.config/vde/tmux-manager/config.yml")
   })
 })
 
@@ -36,7 +36,7 @@ describe("loadConfig", () => {
     })
 
     expect(result.loaded).toBe(false)
-    expect(result.path).toBe("/tmp/home/.config/vde-tmux-manager/config.yaml")
+    expect(result.path).toBe("/tmp/home/.config/vde/tmux-manager/config.yml")
     expect(result.config).toEqual(DEFAULT_CONFIG)
   })
 

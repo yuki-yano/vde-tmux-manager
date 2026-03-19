@@ -75,8 +75,8 @@ pnpm add -g vde-tmux-manager
 
 設定ファイルパス:
 
-- `$XDG_CONFIG_HOME/vde-tmux-manager/config.yaml`
-- `XDG_CONFIG_HOME` 未設定時: `~/.config/vde-tmux-manager/config.yaml`
+- `$XDG_CONFIG_HOME/vde/tmux-manager/config.yml`
+- `XDG_CONFIG_HOME` 未設定時: `~/.config/vde/tmux-manager/config.yml`
 
 設定例:
 

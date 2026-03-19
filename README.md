@@ -75,8 +75,8 @@ Inside the selector:
 
 Configuration file path:
 
-- `$XDG_CONFIG_HOME/vde-tmux-manager/config.yaml`
-- fallback path when `XDG_CONFIG_HOME` is unset: `~/.config/vde-tmux-manager/config.yaml`
+- `$XDG_CONFIG_HOME/vde/tmux-manager/config.yml`
+- fallback path when `XDG_CONFIG_HOME` is unset: `~/.config/vde/tmux-manager/config.yml`
 
 Example:
 
