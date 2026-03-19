@@ -50,6 +50,16 @@ export type StatuslineSessionsConfig = {
   fonts: StatuslineSessionsFontsConfig
 }
 
+export type StatuslineCategoryColorsConfig = {
+  fg: string
+  bg: string
+}
+
+export type StatuslineCategoryConfig = {
+  format: string
+  colors: StatuslineCategoryColorsConfig
+}
+
 export type CategoryRuleConfig = {
   category: string
   ghqPatterns: readonly string[]
@@ -69,6 +79,7 @@ export type CategoriesConfig = {
 
 export type ResolvedConfig = {
   sessionManager: SessionManagerConfig
+  statuslineCategory: StatuslineCategoryConfig
   statuslineSessions: StatuslineSessionsConfig
   categories: CategoriesConfig
 }
@@ -84,6 +95,10 @@ export type PartialConfig = {
     showIndex?: boolean
     colors?: Partial<StatuslineSessionsColorsConfig>
     fonts?: Partial<StatuslineSessionsFontsConfig>
+  }
+  statuslineCategory?: {
+    format?: string
+    colors?: Partial<StatuslineCategoryColorsConfig>
   }
   categories?: {
     defaultCategory?: string
@@ -741,6 +756,61 @@ const parseFontsConfig = (
   return partial
 }
 
+const parseStatuslineCategoryColorsConfig = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  requiredObject: boolean,
+  requiredFields: boolean,
+):
+  | Partial<StatuslineCategoryColorsConfig>
+  | StatuslineCategoryColorsConfig
+  | undefined => {
+  if (value === undefined) {
+    if (requiredObject) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (!isRecord(value)) {
+    pushIssue(issues, path, "must be an object")
+    return undefined
+  }
+
+  ensureNoUnknownKeys(value, ["fg", "bg"], path, issues)
+
+  const fg = parseNonEmptyString(
+    value.fg,
+    [...path, "fg"],
+    issues,
+    requiredFields,
+  )
+  const bg = parseNonEmptyString(
+    value.bg,
+    [...path, "bg"],
+    issues,
+    requiredFields,
+  )
+
+  const partial: Partial<StatuslineCategoryColorsConfig> = {}
+  if (fg !== undefined) {
+    partial.fg = fg
+  }
+  if (bg !== undefined) {
+    partial.bg = bg
+  }
+
+  if (requiredFields) {
+    if (partial.fg === undefined || partial.bg === undefined) {
+      return undefined
+    }
+    return partial as StatuslineCategoryColorsConfig
+  }
+
+  return partial
+}
+
 const parseCategoryRule = (
   value: unknown,
   path: ReadonlyArray<PropertyKey>,
@@ -950,7 +1020,7 @@ const parseCategories = (
     issues,
   )
 
-  const defaultCategory = parseNonEmptyString(
+  const defaultCategory = parseString(
     value.defaultCategory,
     [...path, "defaultCategory"],
     issues,
@@ -1166,6 +1236,62 @@ const parseStatuslineSessions = (
   return partial
 }
 
+const parseStatuslineCategory = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  requiredObject: boolean,
+  requiredFields: boolean,
+):
+  | PartialConfig["statuslineCategory"]
+  | StatuslineCategoryConfig
+  | undefined => {
+  if (value === undefined) {
+    if (requiredObject) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (!isRecord(value)) {
+    pushIssue(issues, path, "must be an object")
+    return undefined
+  }
+
+  ensureNoUnknownKeys(value, ["format", "colors"], path, issues)
+
+  const format = parseString(
+    value.format,
+    [...path, "format"],
+    issues,
+    requiredFields,
+  )
+  const colors = parseStatuslineCategoryColorsConfig(
+    value.colors,
+    [...path, "colors"],
+    issues,
+    requiredFields,
+    requiredFields,
+  )
+
+  const partial: NonNullable<PartialConfig["statuslineCategory"]> = {}
+  if (format !== undefined) {
+    partial.format = format
+  }
+  if (colors !== undefined) {
+    partial.colors = colors as Partial<StatuslineCategoryColorsConfig>
+  }
+
+  if (requiredFields) {
+    if (partial.format === undefined || partial.colors === undefined) {
+      return undefined
+    }
+    return partial as StatuslineCategoryConfig
+  }
+
+  return partial
+}
+
 export const validatePartialConfig = (
   input: unknown,
 ): ValidationResult<PartialConfig> => {
@@ -1177,7 +1303,12 @@ export const validatePartialConfig = (
 
   ensureNoUnknownKeys(
     input,
-    ["sessionManager", "statuslineSessions", "categories"],
+    [
+      "sessionManager",
+      "statuslineCategory",
+      "statuslineSessions",
+      "categories",
+    ],
     [],
     issues,
   )
@@ -1185,6 +1316,13 @@ export const validatePartialConfig = (
   const sessionManager = parseSessionManager(
     input.sessionManager,
     ["sessionManager"],
+    issues,
+    false,
+    false,
+  )
+  const statuslineCategory = parseStatuslineCategory(
+    input.statuslineCategory,
+    ["statuslineCategory"],
     issues,
     false,
     false,
@@ -1212,6 +1350,10 @@ export const validatePartialConfig = (
   if (sessionManager !== undefined) {
     partial.sessionManager = sessionManager as PartialConfig["sessionManager"]
   }
+  if (statuslineCategory !== undefined) {
+    partial.statuslineCategory =
+      statuslineCategory as PartialConfig["statuslineCategory"]
+  }
   if (statuslineSessions !== undefined) {
     partial.statuslineSessions =
       statuslineSessions as PartialConfig["statuslineSessions"]
@@ -1237,7 +1379,12 @@ export const validateResolvedConfig = (
 
   ensureNoUnknownKeys(
     input,
-    ["sessionManager", "statuslineSessions", "categories"],
+    [
+      "sessionManager",
+      "statuslineCategory",
+      "statuslineSessions",
+      "categories",
+    ],
     [],
     issues,
   )
@@ -1245,6 +1392,13 @@ export const validateResolvedConfig = (
   const sessionManager = parseSessionManager(
     input.sessionManager,
     ["sessionManager"],
+    issues,
+    true,
+    true,
+  )
+  const statuslineCategory = parseStatuslineCategory(
+    input.statuslineCategory,
+    ["statuslineCategory"],
     issues,
     true,
     true,
@@ -1267,6 +1421,7 @@ export const validateResolvedConfig = (
   if (
     issues.length > 0 ||
     sessionManager === undefined ||
+    statuslineCategory === undefined ||
     statuslineSessions === undefined ||
     categories === undefined
   ) {
@@ -1277,6 +1432,7 @@ export const validateResolvedConfig = (
     success: true,
     data: {
       sessionManager: sessionManager as SessionManagerConfig,
+      statuslineCategory: statuslineCategory as StatuslineCategoryConfig,
       statuslineSessions: statuslineSessions as StatuslineSessionsConfig,
       categories: categories as CategoriesConfig,
     },

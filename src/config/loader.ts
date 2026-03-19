@@ -71,6 +71,15 @@ const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
         ...(partial.sessionManager?.kill ?? {}),
       },
     },
+    statuslineCategory: {
+      format:
+        partial.statuslineCategory?.format ??
+        DEFAULT_CONFIG.statuslineCategory.format,
+      colors: {
+        ...DEFAULT_CONFIG.statuslineCategory.colors,
+        ...(partial.statuslineCategory?.colors ?? {}),
+      },
+    },
     statuslineSessions: {
       showIndex:
         partial.statuslineSessions?.showIndex ??

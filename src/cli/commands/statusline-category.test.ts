@@ -1,5 +1,8 @@
 import { DEFAULT_CONFIG } from "../../config/defaults"
-import { runStatuslineCategory } from "./statusline-category"
+import {
+  renderStatuslineCategory,
+  runStatuslineCategory,
+} from "./statusline-category"
 
 const createCollector = (): {
   lines: string[]
@@ -53,6 +56,18 @@ describe("runStatuslineCategory", () => {
 
     expect(exitCode).toBe(0)
     expect(stdout.lines[0]).toContain("[work]")
+    expect(stdout.lines[0]).toContain(
+      `bg=${DEFAULT_CONFIG.statuslineSessions.colors.baseBg}`,
+    )
     expect(stderr.lines).toHaveLength(0)
+  })
+
+  it("returns empty output for the unnamed default category", async () => {
+    expect(
+      renderStatuslineCategory({
+        categoryName: "",
+        config: DEFAULT_CONFIG.statuslineCategory,
+      }),
+    ).toBe("")
   })
 })

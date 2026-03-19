@@ -24,11 +24,8 @@ const ensureKnownCategory = ({
   readonly categoryName: string
 }): string => {
   const normalized = categoryName.trim()
-  if (normalized.length === 0) {
-    throw new Error("category name is required")
-  }
-
-  if (!collectDefinedCategories(config.categories).includes(normalized)) {
+  const definedCategories = collectDefinedCategories(config.categories)
+  if (!definedCategories.includes(normalized)) {
     throw new Error(`unknown category: ${normalized}`)
   }
 

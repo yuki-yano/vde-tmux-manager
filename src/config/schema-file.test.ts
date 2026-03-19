@@ -10,6 +10,7 @@ describe("config schema file", () => {
     }
 
     expect(schema.properties).toHaveProperty("sessionManager")
+    expect(schema.properties).toHaveProperty("statuslineCategory")
     expect(schema.properties).toHaveProperty("statuslineSessions")
     expect(schema.properties).toHaveProperty("categories")
 
@@ -31,6 +32,11 @@ describe("config schema file", () => {
       "    sendCtrlC: true",
       "    termWaitMs: 300",
       "    killWaitMs: 300",
+      "statuslineCategory:",
+      '  format: "[{category}]"',
+      "  colors:",
+      '    fg: "#A5A1F2"',
+      '    bg: "#352F63"',
       "statuslineSessions:",
       "  showIndex: false",
       "  colors:",
@@ -67,6 +73,7 @@ describe("config schema file", () => {
     })
 
     expect(result.config.categories.defaultCategory).toBe("public")
+    expect(result.config.statuslineCategory.format).toBe("[{category}]")
     expect(result.config.categories.rules[0]?.category).toBe("work")
     expect(result.config.categories.sessionNameRules[0]?.patterns).toEqual([
       "local-*",

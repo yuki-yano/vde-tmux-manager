@@ -68,6 +68,35 @@ describe("loadConfig", () => {
     expect(result.config.statuslineSessions.fonts.otherPrefix).toBe("[")
     expect(result.config.statuslineSessions.fonts.otherSuffix).toBe("]")
     expect(result.config.statuslineSessions.showIndex).toBe(true)
+    expect(result.config.statuslineCategory).toEqual(
+      DEFAULT_CONFIG.statuslineCategory,
+    )
+  })
+
+  it("merges statuslineCategory config with defaults", async () => {
+    const yaml = [
+      "statuslineCategory:",
+      '  format: "<{category}>"',
+      "  colors:",
+      '    fg: "#ffffff"',
+      "",
+    ].join("\n")
+
+    const readFileFn = vi.fn(async (): Promise<string> => yaml)
+    const result = await loadConfig({
+      env: {},
+      homeDirectory: "/tmp/home",
+      readFileFn,
+    })
+
+    expect(result.loaded).toBe(true)
+    expect(result.config.statuslineCategory).toEqual({
+      format: "<{category}>",
+      colors: {
+        fg: "#ffffff",
+        bg: DEFAULT_CONFIG.statuslineCategory.colors.bg,
+      },
+    })
   })
 
   it("merges categories config with defaults", async () => {
@@ -97,6 +126,20 @@ describe("loadConfig", () => {
         pathPatterns: [],
       },
     ])
+    expect(result.config.categories.sessionNameRules).toEqual([])
+  })
+
+  it("defaults to an unnamed category when categories are not configured", async () => {
+    const readFileFn = vi.fn(async (): Promise<string> => "")
+    const result = await loadConfig({
+      env: {},
+      homeDirectory: "/tmp/home",
+      readFileFn,
+    })
+
+    expect(result.loaded).toBe(true)
+    expect(result.config.categories.defaultCategory).toBe("")
+    expect(result.config.categories.rules).toEqual([])
     expect(result.config.categories.sessionNameRules).toEqual([])
   })
 

@@ -241,6 +241,32 @@ describe("getSessionsInCategory", () => {
 
     expect(sessions.map((session) => session.name)).toEqual(["repo-a"])
   })
+
+  it("treats all sessions as belonging to the unnamed category by default", () => {
+    const sessions = getSessionsInCategory({
+      sessions: [
+        createSession({
+          id: "$1",
+          name: "repo-a",
+          projectPath: "/Users/test/ghq/github.com/company/repo-a",
+        }),
+        createSession({
+          id: "$2",
+          name: "repo-b",
+          projectPath: "/tmp/repo-b",
+        }),
+      ],
+      categoryName: "",
+      config: DEFAULT_CONFIG,
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(sessions.map((session) => session.name)).toEqual([
+      "repo-a",
+      "repo-b",
+    ])
+  })
 })
 
 describe("cycleSessionInCurrentCategory", () => {

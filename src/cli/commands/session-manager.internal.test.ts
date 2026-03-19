@@ -261,7 +261,9 @@ describe("session-manager internals", () => {
       ),
     ).toBe(true)
     expect(entries[0]?.display).toContain("work")
-    expect(entries.some((entry) => entry.action === "server")).toBe(true)
+    const serverEntry = entries.find((entry) => entry.action === "server")
+    expect(serverEntry).toBeDefined()
+    expect(serverEntry?.display).not.toContain("[work]")
   })
 
   it("opens popup when running in tmux", async () => {

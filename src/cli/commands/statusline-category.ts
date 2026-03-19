@@ -22,9 +22,13 @@ export const renderStatuslineCategory = ({
   config,
 }: {
   readonly categoryName: string
-  readonly config: ResolvedConfig["statuslineSessions"]
+  readonly config: ResolvedConfig["statuslineCategory"]
 }): string => {
-  return `#[fg=${config.colors.currentFg},bg=${config.colors.currentBg},bold] [${categoryName}] #[fg=${config.colors.baseFg},bg=${config.colors.baseBg},nobold]`
+  const label = config.format.replaceAll("{category}", categoryName)
+  if (categoryName.length === 0 || label.length === 0) {
+    return ""
+  }
+  return `#[fg=${config.colors.fg},bg=${config.colors.bg},nobold] ${label} #[default]`
 }
 
 export const runStatuslineCategory = async (
@@ -58,7 +62,7 @@ export const runStatuslineCategory = async (
   stdout(
     renderStatuslineCategory({
       categoryName,
-      config: config.statuslineSessions,
+      config: config.statuslineCategory,
     }),
   )
   return EXIT_CODE_OK

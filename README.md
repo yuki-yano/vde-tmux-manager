@@ -100,6 +100,12 @@ sessionManager:
     termWaitMs: 300
     killWaitMs: 300
 
+statuslineCategory:
+  format: "[{category}]"
+  colors:
+    fg: "#A5A1F2"
+    bg: "#352F63"
+
 statuslineSessions:
   showIndex: false
   colors:
@@ -145,6 +151,8 @@ Category resolution order:
 
 Path rules use first-match-wins. For GHQ projects, matching is done against the GHQ-root-relative path such as `github.com/org/repo`. For non-GHQ projects, matching is done against the normalized absolute path, with `~` expanded to `HOME`.
 
+When `categories` is omitted, every session belongs to one unnamed category. In that mode, session cycling and statusline session switching continue to operate across all sessions, similar to the pre-category behavior, and `vtm statusline-category` renders nothing.
+
 Schema file:
 
 - [`schemas/config.schema.json`](./schemas/config.schema.json)
@@ -171,6 +179,8 @@ bind-key C-p run-shell 'vtm category use private'
 ```
 
 `vtm category use <name>` changes the current category for that tmux client, then restores the last active session remembered for that client and category. If no remembered session exists, it switches to the first session in the category. If the category has no sessions, only the category is updated.
+
+`statuslineCategory.format` replaces `{category}` with the current category name. If the resolved category is unnamed, the category segment is disabled and prints an empty string.
 
 Cycle sessions only inside the current category:
 

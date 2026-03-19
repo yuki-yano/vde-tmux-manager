@@ -94,6 +94,33 @@
         }
       }
     },
+    "statuslineCategory": {
+      "type": "object",
+      "description": "Rendering options for the tmux statusline category segment.",
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": "string",
+          "description": "Template for the category label. `{category}` is replaced with the current category name."
+        },
+        "colors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Foreground color for the category segment."
+            },
+            "bg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Background color for the category segment."
+            }
+          }
+        }
+      }
+    },
     "statuslineSessions": {
       "type": "object",
       "description": "Rendering options for the tmux statusline session segment.",
@@ -165,8 +192,7 @@
       "properties": {
         "defaultCategory": {
           "type": "string",
-          "minLength": 1,
-          "description": "Fallback category when no override, path rule, or session name rule matches."
+          "description": "Fallback category when no override, path rule, or session name rule matches. Empty string means an unnamed category."
         },
         "rules": {
           "type": "array",

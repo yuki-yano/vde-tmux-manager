@@ -100,6 +100,12 @@ sessionManager:
     termWaitMs: 300
     killWaitMs: 300
 
+statuslineCategory:
+  format: "[{category}]"
+  colors:
+    fg: "#A5A1F2"
+    bg: "#352F63"
+
 statuslineSessions:
   showIndex: false
   colors:
@@ -145,6 +151,8 @@ category 判定順序:
 
 path rule は上から順に first-match-wins です。GHQ 配下は `github.com/org/repo` のような GHQ root 相対 path に対して `ghqPatterns` を評価し、非 GHQ path は `~` 展開後の絶対 path に対して `pathPatterns` を評価します。
 
+`categories` を設定しない場合は、全 session が 1 つの無名 category に所属します。このとき session-cycle や statusline-sessions switch は全 session を対象に動作し、`vtm statusline-category` は何も表示しません。
+
 Schema ファイル:
 
 - [`schemas/config.schema.json`](./schemas/config.schema.json)
@@ -171,6 +179,8 @@ bind-key C-p run-shell 'vtm category use private'
 ```
 
 `vtm category use <name>` は、その tmux client の current category を更新したあと、その client でその category 内で最後に見ていた session へ戻ります。記録がなければ category 内の先頭 session に移動し、category に session がなければ category だけ切り替えます。
+
+`statuslineCategory.format` では `{category}` が現在の category 名に置換されます。解決後の category が無名なら、category セグメント自体を表示しません。
 
 current category 内だけで session を巡回する:
 

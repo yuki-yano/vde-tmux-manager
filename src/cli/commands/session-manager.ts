@@ -327,7 +327,6 @@ const buildRows = (
       name: "",
       columns: [
         `  ${chalk.red(SYMBOLS.server)} ${chalk.bold("tmux server")}`,
-        chalk.gray(`[${currentCategory}]`),
         chalk.cyan("tmux kill-server"),
         "",
         "",

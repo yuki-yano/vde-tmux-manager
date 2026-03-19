@@ -28,6 +28,13 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
       killWaitMs: 300,
     },
   },
+  statuslineCategory: {
+    format: "[{category}]",
+    colors: {
+      fg: "#A5A1F2",
+      bg: "#352F63",
+    },
+  },
   statuslineSessions: {
     showIndex: false,
     colors: {
@@ -45,7 +52,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     },
   },
   categories: {
-    defaultCategory: "default",
+    defaultCategory: "",
     rules: [],
     sessionNameRules: [],
   },
