@@ -4,6 +4,11 @@ import {
   runStatuslineSessions,
 } from "./statusline-sessions"
 
+const categoryLastSessionOption = (categoryName: string): string => {
+  const encoded = Buffer.from(categoryName, "utf8").toString("hex")
+  return `category_last_session_${encoded.length > 0 ? encoded : "0"}`
+}
+
 describe("renderStatuslineSessions", () => {
   it("renders clickable segments with current session styling", () => {
     const output = renderStatuslineSessions({
@@ -280,7 +285,7 @@ describe("runStatuslineSessions", () => {
       currentSession: vi.fn(async () => "dev"),
       currentClientName: vi.fn(async () => "/dev/ttys001"),
       showClientOption: vi.fn(async (_target: string, option: string) => {
-        if (option === "category_last_sessions") {
+        if (option === categoryLastSessionOption("work")) {
           return ""
         }
         return "work"
@@ -329,10 +334,8 @@ describe("runStatuslineSessions", () => {
     expect(tmux.switchClient).toHaveBeenCalledWith("work")
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
-      "category_last_sessions",
-      JSON.stringify({
-        work: "work",
-      }),
+      categoryLastSessionOption("work"),
+      "work",
     )
     expect(stdout.lines).toHaveLength(0)
     expect(stderr.lines).toHaveLength(0)

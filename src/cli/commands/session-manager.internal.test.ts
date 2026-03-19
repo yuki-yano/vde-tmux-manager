@@ -1,6 +1,11 @@
 import { DEFAULT_CONFIG } from "../../config/defaults"
 import { __internal } from "./session-manager"
 
+const categoryLastSessionOption = (categoryName: string): string => {
+  const encoded = Buffer.from(categoryName, "utf8").toString("hex")
+  return `category_last_session_${encoded.length > 0 ? encoded : "0"}`
+}
+
 const configWithCategories = {
   ...DEFAULT_CONFIG,
   categories: {
@@ -72,7 +77,7 @@ const createTmuxMock = (): {
     currentSession: vi.fn(async () => "dev"),
     currentClientName: vi.fn(async () => "/dev/ttys001"),
     showClientOption: vi.fn(async (_target: string, option: string) => {
-      if (option === "category_last_sessions") {
+      if (option === categoryLastSessionOption("work")) {
         return ""
       }
       return "work"
@@ -408,10 +413,8 @@ describe("session-manager internals", () => {
     expect(tmux.switchClient).toHaveBeenCalledWith("dev")
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
-      "category_last_sessions",
-      JSON.stringify({
-        work: "dev",
-      }),
+      categoryLastSessionOption("work"),
+      "dev",
     )
 
     await __internal.runSelection({

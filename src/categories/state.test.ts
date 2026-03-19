@@ -28,6 +28,11 @@ const createSession = (
   categoryOverride: overrides.categoryOverride ?? "",
 })
 
+const categoryLastSessionOption = (categoryName: string): string => {
+  const encoded = Buffer.from(categoryName, "utf8").toString("hex")
+  return `category_last_session_${encoded.length > 0 ? encoded : "0"}`
+}
+
 const config = {
   ...DEFAULT_CONFIG,
   categories: {
@@ -92,11 +97,9 @@ describe("current category", () => {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
       currentSession: vi.fn(async () => "repo-a"),
       setClientOption: vi.fn(async () => undefined),
-      showClientOption: vi.fn(async (target: string, option: string) => {
-        if (option === "category_last_sessions") {
-          return JSON.stringify({
-            work: "repo-b",
-          })
+      showClientOption: vi.fn(async (_target: string, option: string) => {
+        if (option === categoryLastSessionOption("work")) {
+          return "repo-b"
         }
         return ""
       }),
@@ -219,10 +222,8 @@ describe("external session changes", () => {
     )
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys999",
-      "category_last_sessions",
-      JSON.stringify({
-        private: "private-repo",
-      }),
+      categoryLastSessionOption("private"),
+      "private-repo",
     )
   })
 
@@ -251,10 +252,8 @@ describe("external session changes", () => {
     expect(remembered).toBe("private-repo")
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
-      "category_last_sessions",
-      JSON.stringify({
-        private: "private-repo",
-      }),
+      categoryLastSessionOption("private"),
+      "private-repo",
     )
   })
 })
@@ -350,7 +349,7 @@ describe("cycleSessionInCurrentCategory", () => {
     const tmux = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
       showClientOption: vi.fn(async (_target: string, option: string) => {
-        if (option === "category_last_sessions") {
+        if (option === categoryLastSessionOption("work")) {
           return ""
         }
         return "work"
@@ -388,10 +387,8 @@ describe("cycleSessionInCurrentCategory", () => {
     expect(tmux.switchClient).toHaveBeenCalledWith("repo-b")
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
-      "category_last_sessions",
-      JSON.stringify({
-        work: "repo-b",
-      }),
+      categoryLastSessionOption("work"),
+      "repo-b",
     )
   })
 })
@@ -402,15 +399,15 @@ describe("client-scoped last active sessions", () => {
     const tmuxClientA = {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
       showClientOption: vi.fn(async (target: string, option: string) => {
-        if (option === "category_last_sessions") {
-          return clientState.get(target) ?? ""
+        if (option.startsWith("category_last_session_")) {
+          return clientState.get(`${target}:${option}`) ?? ""
         }
         return ""
       }),
       setClientOption: vi.fn(
         async (target: string, option: string, value: string) => {
-          if (option === "category_last_sessions") {
-            clientState.set(target, value)
+          if (option.startsWith("category_last_session_")) {
+            clientState.set(`${target}:${option}`, value)
           }
         },
       ),
@@ -418,15 +415,15 @@ describe("client-scoped last active sessions", () => {
     const tmuxClientB = {
       currentClientName: vi.fn(async () => "/dev/ttys002"),
       showClientOption: vi.fn(async (target: string, option: string) => {
-        if (option === "category_last_sessions") {
-          return clientState.get(target) ?? ""
+        if (option.startsWith("category_last_session_")) {
+          return clientState.get(`${target}:${option}`) ?? ""
         }
         return ""
       }),
       setClientOption: vi.fn(
         async (target: string, option: string, value: string) => {
-          if (option === "category_last_sessions") {
-            clientState.set(target, value)
+          if (option.startsWith("category_last_session_")) {
+            clientState.set(`${target}:${option}`, value)
           }
         },
       ),
@@ -463,10 +460,8 @@ describe("client-scoped last active sessions", () => {
       currentSession: vi.fn(async () => "deleted-repo"),
       setClientOption: vi.fn(async () => undefined),
       showClientOption: vi.fn(async (_target: string, option: string) => {
-        if (option === "category_last_sessions") {
-          return JSON.stringify({
-            work: "deleted-repo",
-          })
+        if (option === categoryLastSessionOption("work")) {
+          return "deleted-repo"
         }
         return ""
       }),
@@ -525,10 +520,8 @@ describe("switchClientAndRememberSession", () => {
     )
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
-      "category_last_sessions",
-      JSON.stringify({
-        private: "private-repo",
-      }),
+      categoryLastSessionOption("private"),
+      "private-repo",
     )
   })
 })

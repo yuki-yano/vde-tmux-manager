@@ -5,6 +5,11 @@ import { mkdtemp } from "node:fs/promises"
 import { DEFAULT_CONFIG } from "../config/defaults"
 import { switchProjectSession } from "./project-switch"
 
+const categoryLastSessionOption = (categoryName: string): string => {
+  const encoded = Buffer.from(categoryName, "utf8").toString("hex")
+  return `category_last_session_${encoded.length > 0 ? encoded : "0"}`
+}
+
 const createRunner = ({
   ghqRoot,
   gitRoot,
@@ -54,7 +59,7 @@ describe("switchProjectSession", () => {
       listSessionDetails: vi.fn(async () => []),
       currentClientName: vi.fn(async () => "/dev/ttys001"),
       showClientOption: vi.fn(async (_target: string, option: string) => {
-        if (option === "category_last_sessions") {
+        if (option === categoryLastSessionOption("work")) {
           return ""
         }
         return "public"
@@ -113,10 +118,8 @@ describe("switchProjectSession", () => {
     )
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys001",
-      "category_last_sessions",
-      JSON.stringify({
-        work: "repo-a",
-      }),
+      categoryLastSessionOption("work"),
+      "repo-a",
     )
   })
 

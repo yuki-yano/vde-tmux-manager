@@ -1,6 +1,11 @@
 import { DEFAULT_CONFIG } from "../../config/defaults"
 import { runCategory } from "./category"
 
+const categoryLastSessionOption = (categoryName: string): string => {
+  const encoded = Buffer.from(categoryName, "utf8").toString("hex")
+  return `category_last_session_${encoded.length > 0 ? encoded : "0"}`
+}
+
 const createCollector = (): {
   lines: string[]
   write: (line: string) => void
@@ -23,10 +28,8 @@ describe("runCategory", () => {
       currentClientName: vi.fn(async () => "/dev/ttys001"),
       currentSession: vi.fn(async () => "repo-a"),
       showClientOption: vi.fn(async (_target: string, option: string) => {
-        if (option === "category_last_sessions") {
-          return JSON.stringify({
-            work: "repo-b",
-          })
+        if (option === categoryLastSessionOption("work")) {
+          return "repo-b"
         }
         return ""
       }),
@@ -106,10 +109,8 @@ describe("runCategory", () => {
         if (option === "current_category") {
           return "work"
         }
-        if (option === "category_last_sessions") {
-          return JSON.stringify({
-            private: "repo-private",
-          })
+        if (option === categoryLastSessionOption("private")) {
+          return "repo-private"
         }
         return ""
       }),

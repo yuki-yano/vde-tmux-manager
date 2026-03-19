@@ -248,7 +248,7 @@ vtm sessions refresh-category
 Internal client state:
 
 - `@current_category`: current category for the tmux client
-- `@category_last_sessions`: JSON map of `category -> last active session` scoped to the tmux client
+- `@category_last_session_<hex(category)>`: last active session for each category, scoped to the tmux client
 
 Simple right-click menu for kill actions:
 

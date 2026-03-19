@@ -1,6 +1,11 @@
 import { DEFAULT_CONFIG } from "../../config/defaults"
 import { runHooks } from "./hooks"
 
+const categoryLastSessionOption = (categoryName: string): string => {
+  const encoded = Buffer.from(categoryName, "utf8").toString("hex")
+  return `category_last_session_${encoded.length > 0 ? encoded : "0"}`
+}
+
 const createCollector = (): {
   lines: string[]
   write: (line: string) => void
@@ -75,10 +80,8 @@ describe("runHooks", () => {
     )
     expect(tmux.setClientOption).toHaveBeenCalledWith(
       "/dev/ttys999",
-      "category_last_sessions",
-      JSON.stringify({
-        private: "private-repo",
-      }),
+      categoryLastSessionOption("private"),
+      "private-repo",
     )
     expect(stderr.lines).toHaveLength(0)
   })

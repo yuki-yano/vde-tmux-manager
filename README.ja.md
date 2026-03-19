@@ -248,7 +248,7 @@ vtm sessions refresh-category
 内部 state:
 
 - `@current_category`: tmux client ごとの current category
-- `@category_last_sessions`: tmux client ごとの `category -> last active session` JSON
+- `@category_last_session_<hex(category)>`: tmux client ごとの category 別 last active session
 
 kill 操作に絞ったシンプルな右クリックメニュー:
 
