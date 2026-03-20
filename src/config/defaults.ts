@@ -30,9 +30,9 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     },
   },
   statuslineCategory: {
-    format: " {category} ",
-    prefix: "\ue0b6",
-    suffix: "\ue0b4",
+    format: "{category}",
+    prefix: "",
+    suffix: "",
     bold: true,
     colors: {
       fg: "#1C1C1C",
@@ -43,9 +43,9 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
   statuslineSessions: {
     showIndex: false,
     current: {
-      format: " {session} ",
-      prefix: "\ue0b6",
-      suffix: "\ue0b4",
+      format: "{session}",
+      prefix: "",
+      suffix: "",
       bold: false,
       colors: {
         fg: "#1E1E2E",

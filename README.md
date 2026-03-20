@@ -105,9 +105,9 @@ sessionManager:
     killWaitMs: 300
 
 statuslineCategory:
-  format: " {category} "
-  prefix: ""
-  suffix: ""
+  format: "{category}"
+  prefix: ""
+  suffix: ""
   bold: true
   colors:
     fg: "#1C1C1C"
@@ -117,9 +117,9 @@ statuslineCategory:
 statuslineSessions:
   showIndex: false
   current:
-    format: " {session} "
-    prefix: ""
-    suffix: ""
+    format: "{session}"
+    prefix: ""
+    suffix: ""
     bold: false
     colors:
       fg: "#1E1E2E"
