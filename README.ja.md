@@ -105,7 +105,7 @@ sessionManager:
     killWaitMs: 300
 
 statuslineCategory:
-  format: "{category}"
+  format: " {category} "
   prefix: ""
   suffix: ""
   bold: true

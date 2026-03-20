@@ -35,7 +35,7 @@ describe("config schema file", () => {
       "    termWaitMs: 300",
       "    killWaitMs: 300",
       "statuslineCategory:",
-      '  format: "{category}"',
+      '  format: " {category} "',
       '  prefix: ""',
       '  suffix: ""',
       "  bold: true",
@@ -94,7 +94,7 @@ describe("config schema file", () => {
       work: 10,
       private: 20,
     })
-    expect(result.config.statuslineCategory.format).toBe("{category}")
+    expect(result.config.statuslineCategory.format).toBe(" {category} ")
     expect(result.config.statuslineCategory.prefix).toBe("")
     expect(result.config.statuslineCategory.suffix).toBe("")
     expect(result.config.statuslineCategory.bold).toBe(true)

@@ -30,7 +30,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     },
   },
   statuslineCategory: {
-    format: "{category}",
+    format: " {category} ",
     prefix: "\ue0b6",
     suffix: "\ue0b4",
     bold: true,

@@ -55,7 +55,7 @@ describe("runStatuslineCategory", () => {
     })
 
     expect(exitCode).toBe(0)
-    expect(stdout.lines[0]).toContain("work")
+    expect(stdout.lines[0]).toContain(" work ")
     expect(stdout.lines[0]).toContain("")
     expect(stdout.lines[0]).toContain("")
     expect(stdout.lines[0]).toContain(
