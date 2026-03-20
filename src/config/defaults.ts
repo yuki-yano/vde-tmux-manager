@@ -43,7 +43,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
   statuslineSessions: {
     showIndex: false,
     current: {
-      format: "{session}",
+      format: " {session} ",
       prefix: "\ue0b6",
       suffix: "\ue0b4",
       bold: false,

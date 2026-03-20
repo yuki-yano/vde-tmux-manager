@@ -46,7 +46,7 @@ describe("config schema file", () => {
       "statuslineSessions:",
       "  showIndex: false",
       "  current:",
-      '    format: "{session}"',
+      '    format: " {session} "',
       '    prefix: ""',
       '    suffix: ""',
       "    bold: false",
