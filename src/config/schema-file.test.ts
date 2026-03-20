@@ -55,7 +55,7 @@ describe("config schema file", () => {
       '      bg: "#B4BEFE"',
       '      outerBg: "#352F63"',
       "  other:",
-      '    format: "{session}"',
+      '    format: " {session} "',
       '    prefix: ""',
       '    suffix: ""',
       "    bold: false",

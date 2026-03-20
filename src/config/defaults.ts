@@ -54,7 +54,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
       },
     },
     other: {
-      format: "{session}",
+      format: " {session} ",
       prefix: "",
       suffix: "",
       bold: false,

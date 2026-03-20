@@ -21,7 +21,7 @@ describe("renderStatuslineSessions", () => {
     })
 
     expect(output).toMatchInlineSnapshot(
-      '" #[range=session|$1]#[fg=#C6D0F5,bg=#352F63,nobold]dev#[default]#[norange] #[range=session|$2]#[fg=#B4BEFE,bg=#352F63,nobold]#[fg=#1E1E2E,bg=#B4BEFE,nobold] work #[fg=#B4BEFE,bg=#352F63,nobold]#[default]#[norange]"',
+      '" #[range=session|$1]#[fg=#C6D0F5,bg=#352F63,nobold] dev #[default]#[norange] #[range=session|$2]#[fg=#B4BEFE,bg=#352F63,nobold]#[fg=#1E1E2E,bg=#B4BEFE,nobold] work #[fg=#B4BEFE,bg=#352F63,nobold]#[default]#[norange]"',
     )
   })
 
@@ -38,7 +38,7 @@ describe("renderStatuslineSessions", () => {
       },
     })
 
-    expect(output).toContain("]1 dev#[")
+    expect(output).toContain("] 1 dev #[")
     expect(output).toContain("#[fg=#1E1E2E,bg=#B4BEFE,nobold] 2 work ")
     expect(output).toContain(" work #[fg=#B4BEFE,bg=#352F63,nobold]")
   })
@@ -56,7 +56,7 @@ describe("renderStatuslineSessions", () => {
       },
     })
 
-    expect(output).toContain("]9 session-9#[")
+    expect(output).toContain("] 9 session-9 #[")
     expect(output).not.toContain("10 session-10")
     expect(output).toContain("#[fg=#1E1E2E,bg=#B4BEFE,nobold] session-10 ")
     expect(output).toContain(" session-10 #[fg=#B4BEFE,bg=#352F63,nobold]")
@@ -246,7 +246,7 @@ describe("runStatuslineSessions", () => {
 
     expect(exitCode).toBe(0)
     expect(stdout.lines[0]).toContain("#[fg=#1E1E2E,bg=#B4BEFE,nobold] 1 dev ")
-    expect(stdout.lines[0]).toContain("]2 work#[")
+    expect(stdout.lines[0]).toContain("] 2 work #[")
     expect(stderr.lines).toHaveLength(0)
   })
 
