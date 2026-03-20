@@ -181,6 +181,15 @@ const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
       format:
         partial.statuslineCategory?.format ??
         DEFAULT_CONFIG.statuslineCategory.format,
+      prefix:
+        partial.statuslineCategory?.prefix ??
+        DEFAULT_CONFIG.statuslineCategory.prefix,
+      suffix:
+        partial.statuslineCategory?.suffix ??
+        DEFAULT_CONFIG.statuslineCategory.suffix,
+      bold:
+        partial.statuslineCategory?.bold ??
+        DEFAULT_CONFIG.statuslineCategory.bold,
       colors: {
         ...DEFAULT_CONFIG.statuslineCategory.colors,
         ...(partial.statuslineCategory?.colors ?? {}),
@@ -190,13 +199,41 @@ const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
       showIndex:
         partial.statuslineSessions?.showIndex ??
         DEFAULT_CONFIG.statuslineSessions.showIndex,
-      colors: {
-        ...DEFAULT_CONFIG.statuslineSessions.colors,
-        ...(partial.statuslineSessions?.colors ?? {}),
+      current: {
+        format:
+          partial.statuslineSessions?.current?.format ??
+          DEFAULT_CONFIG.statuslineSessions.current.format,
+        prefix:
+          partial.statuslineSessions?.current?.prefix ??
+          DEFAULT_CONFIG.statuslineSessions.current.prefix,
+        suffix:
+          partial.statuslineSessions?.current?.suffix ??
+          DEFAULT_CONFIG.statuslineSessions.current.suffix,
+        bold:
+          partial.statuslineSessions?.current?.bold ??
+          DEFAULT_CONFIG.statuslineSessions.current.bold,
+        colors: {
+          ...DEFAULT_CONFIG.statuslineSessions.current.colors,
+          ...(partial.statuslineSessions?.current?.colors ?? {}),
+        },
       },
-      fonts: {
-        ...DEFAULT_CONFIG.statuslineSessions.fonts,
-        ...(partial.statuslineSessions?.fonts ?? {}),
+      other: {
+        format:
+          partial.statuslineSessions?.other?.format ??
+          DEFAULT_CONFIG.statuslineSessions.other.format,
+        prefix:
+          partial.statuslineSessions?.other?.prefix ??
+          DEFAULT_CONFIG.statuslineSessions.other.prefix,
+        suffix:
+          partial.statuslineSessions?.other?.suffix ??
+          DEFAULT_CONFIG.statuslineSessions.other.suffix,
+        bold:
+          partial.statuslineSessions?.other?.bold ??
+          DEFAULT_CONFIG.statuslineSessions.other.bold,
+        colors: {
+          ...DEFAULT_CONFIG.statuslineSessions.other.colors,
+          ...(partial.statuslineSessions?.other?.colors ?? {}),
+        },
       },
     },
     categories: {

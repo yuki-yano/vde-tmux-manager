@@ -1,4 +1,5 @@
 import stringWidth from "string-width"
+import type { StatuslineSegmentConfig } from "../config/schema"
 
 const ANSI_PATTERN = new RegExp(String.raw`\u001B\[[0-9;]*m`, "g")
 const HAS_ANSI_PATTERN = new RegExp(String.raw`\u001B\[[0-9;]*m`)
@@ -89,4 +90,30 @@ export const padVisible = (text: string, width: number): string => {
     return truncateVisible(text, width)
   }
   return text + " ".repeat(width - current)
+}
+
+export const renderTmuxStatuslineSegment = ({
+  content,
+  config,
+}: {
+  readonly content: string
+  readonly config: StatuslineSegmentConfig
+}): string => {
+  if (content.length === 0) {
+    return ""
+  }
+
+  const weight = config.bold ? "bold" : "nobold"
+  let output = ""
+
+  if (config.prefix.length > 0) {
+    output += `#[fg=${config.colors.bg},bg=${config.colors.outerBg},nobold]${config.prefix}`
+  }
+  output += `#[fg=${config.colors.fg},bg=${config.colors.bg},${weight}]${content}`
+  if (config.suffix.length > 0) {
+    output += `#[fg=${config.colors.bg},bg=${config.colors.outerBg},nobold]${config.suffix}`
+  }
+  output += "#[default]"
+
+  return output
 }

@@ -101,18 +101,35 @@
           "type": "string",
           "description": "Template for the category label. `{category}` is replaced with the current category name."
         },
+        "prefix": {
+          "type": "string",
+          "description": "Optional text rendered before the category body."
+        },
+        "suffix": {
+          "type": "string",
+          "description": "Optional text rendered after the category body."
+        },
+        "bold": {
+          "type": "boolean",
+          "description": "Whether the category body is rendered bold."
+        },
         "colors": {
           "type": "object",
           "properties": {
             "fg": {
               "type": "string",
               "minLength": 1,
-              "description": "Foreground color for the category segment."
+              "description": "Foreground color for the category body."
             },
             "bg": {
               "type": "string",
               "minLength": 1,
-              "description": "Background color for the category segment."
+              "description": "Background color for the category body."
+            },
+            "outerBg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Background color outside the body, used behind prefix and suffix."
             }
           }
         }
@@ -126,54 +143,85 @@
           "type": "boolean",
           "description": "Show 1-based indexes before session names."
         },
-        "colors": {
+        "current": {
           "type": "object",
           "properties": {
-            "baseFg": {
+            "format": {
               "type": "string",
-              "minLength": 1,
-              "description": "Foreground color for the base segment."
+              "description": "Template for the current session. `{session}` is replaced with the rendered session label."
             },
-            "baseBg": {
+            "prefix": {
               "type": "string",
-              "minLength": 1,
-              "description": "Background color for the base segment."
+              "description": "Optional text rendered before the current session body."
             },
-            "currentFg": {
+            "suffix": {
               "type": "string",
-              "minLength": 1,
-              "description": "Foreground color for the current session."
+              "description": "Optional text rendered after the current session body."
             },
-            "currentBg": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Background color for the current session."
+            "bold": {
+              "type": "boolean",
+              "description": "Whether the current session body is rendered bold."
             },
-            "otherFg": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Foreground color for non-current sessions."
+            "colors": {
+              "type": "object",
+              "properties": {
+                "fg": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Foreground color for the current session body."
+                },
+                "bg": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Background color for the current session body."
+                },
+                "outerBg": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Background color outside the body, used behind prefix and suffix."
+                }
+              }
             }
           }
         },
-        "fonts": {
+        "other": {
           "type": "object",
           "properties": {
-            "currentPrefix": {
+            "format": {
               "type": "string",
-              "description": "Prefix glyph for the current session."
+              "description": "Template for non-current sessions. `{session}` is replaced with the rendered session label."
             },
-            "currentSuffix": {
+            "prefix": {
               "type": "string",
-              "description": "Suffix glyph for the current session."
+              "description": "Optional text rendered before the non-current session body."
             },
-            "otherPrefix": {
+            "suffix": {
               "type": "string",
-              "description": "Prefix glyph for non-current sessions."
+              "description": "Optional text rendered after the non-current session body."
             },
-            "otherSuffix": {
-              "type": "string",
-              "description": "Suffix glyph for non-current sessions."
+            "bold": {
+              "type": "boolean",
+              "description": "Whether the non-current session body is rendered bold."
+            },
+            "colors": {
+              "type": "object",
+              "properties": {
+                "fg": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Foreground color for the non-current session body."
+                },
+                "bg": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Background color for the non-current session body."
+                },
+                "outerBg": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Background color outside the body, used behind prefix and suffix."
+                }
+              }
             }
           }
         }

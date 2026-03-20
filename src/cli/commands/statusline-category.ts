@@ -2,6 +2,7 @@ import { getCurrentCategory } from "../../categories/state"
 import { loadConfig } from "../../config/loader"
 import type { ResolvedConfig } from "../../config/schema"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
+import { renderTmuxStatuslineSegment } from "../../ui/format"
 
 const EXIT_CODE_OK = 0
 const EXIT_CODE_USAGE = 2
@@ -24,11 +25,11 @@ export const renderStatuslineCategory = ({
   readonly categoryName: string
   readonly config: ResolvedConfig["statuslineCategory"]
 }): string => {
-  const label = config.format.replaceAll("{category}", categoryName)
-  if (categoryName.length === 0 || label.length === 0) {
+  const content = config.format.replaceAll("{category}", categoryName)
+  if (categoryName.length === 0 || content.length === 0) {
     return ""
   }
-  return `#[fg=${config.colors.fg},bg=${config.colors.bg},nobold] ${label} #[default]`
+  return renderTmuxStatuslineSegment({ content, config })
 }
 
 export const runStatuslineCategory = async (

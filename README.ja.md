@@ -105,24 +105,35 @@ sessionManager:
     killWaitMs: 300
 
 statuslineCategory:
-  format: "[{category}]"
+  format: "{category}"
+  prefix: ""
+  suffix: ""
+  bold: true
   colors:
-    fg: "#E8ECF3"
-    bg: "#352F63"
+    fg: "#1C1C1C"
+    bg: "#FAB387"
+    outerBg: "#352F63"
 
 statuslineSessions:
   showIndex: false
-  colors:
-    baseFg: "#A5A1F2"
-    baseBg: "#352F63"
-    currentFg: "#1E1E2E"
-    currentBg: "#B4BEFE"
-    otherFg: "#C6D0F5"
-  fonts:
-    currentPrefix: ""
-    currentSuffix: ""
-    otherPrefix: ""
-    otherSuffix: ""
+  current:
+    format: "{session}"
+    prefix: ""
+    suffix: ""
+    bold: false
+    colors:
+      fg: "#1E1E2E"
+      bg: "#B4BEFE"
+      outerBg: "#352F63"
+  other:
+    format: "{session}"
+    prefix: ""
+    suffix: ""
+    bold: false
+    colors:
+      fg: "#C6D0F5"
+      bg: "#352F63"
+      outerBg: "#352F63"
 
 categories:
   defaultCategory: work
@@ -203,7 +214,8 @@ last active session の記録タイミング:
 - tmux 標準操作の session 切替も追跡したい場合は、以下の hook 設定を入れてください
 - client ごとの category state は、client 名を埋め込んだ tmux server-scoped user option に保存されるため、同一 client 上の session 切替では失われません
 
-`statuslineCategory.format` では `{category}` が現在の category 名に置換されます。解決後の category が無名なら、category セグメント自体を表示しません。
+`statuslineCategory.format` では `{category}` が現在の category 名に置換されます。`prefix` / `suffix` は前後にそのまま描画され、`colors.outerBg` はその外側背景色として使われます。解決後の category が無名なら、category セグメント自体を表示しません。
+`statuslineSessions.current.format` / `statuslineSessions.other.format` では `{session}` が session 名に置換されます。`--show-index` または `showIndex: true` のときは `1 foo` のような index 付き文字列が入ります。
 
 current category 内だけで session を巡回する:
 

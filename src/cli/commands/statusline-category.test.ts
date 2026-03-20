@@ -55,9 +55,11 @@ describe("runStatuslineCategory", () => {
     })
 
     expect(exitCode).toBe(0)
-    expect(stdout.lines[0]).toContain("[work]")
+    expect(stdout.lines[0]).toContain("work")
+    expect(stdout.lines[0]).toContain("")
+    expect(stdout.lines[0]).toContain("")
     expect(stdout.lines[0]).toContain(
-      `bg=${DEFAULT_CONFIG.statuslineSessions.colors.baseBg}`,
+      `bg=${DEFAULT_CONFIG.statuslineCategory.colors.bg}`,
     )
     expect(stderr.lines).toHaveLength(0)
   })

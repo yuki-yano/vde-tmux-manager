@@ -48,9 +48,13 @@ describe("loadConfig", () => {
       '    prompt: "custom> "',
       "statuslineSessions:",
       "  showIndex: true",
-      "  fonts:",
-      '    otherPrefix: "["',
-      '    otherSuffix: "]"',
+      "  other:",
+      '    format: "[{session}]"',
+      '    prefix: "("',
+      '    suffix: ")"',
+      "    bold: true",
+      "    colors:",
+      '      fg: "#ffffff"',
       "",
     ].join("\n")
 
@@ -67,8 +71,17 @@ describe("loadConfig", () => {
     expect(result.config.sessionManager.fzf.border).toBe(
       DEFAULT_CONFIG.sessionManager.fzf.border,
     )
-    expect(result.config.statuslineSessions.fonts.otherPrefix).toBe("[")
-    expect(result.config.statuslineSessions.fonts.otherSuffix).toBe("]")
+    expect(result.config.statuslineSessions.other.format).toBe("[{session}]")
+    expect(result.config.statuslineSessions.other.prefix).toBe("(")
+    expect(result.config.statuslineSessions.other.suffix).toBe(")")
+    expect(result.config.statuslineSessions.other.bold).toBe(true)
+    expect(result.config.statuslineSessions.other.colors.fg).toBe("#ffffff")
+    expect(result.config.statuslineSessions.other.colors.bg).toBe(
+      DEFAULT_CONFIG.statuslineSessions.other.colors.bg,
+    )
+    expect(result.config.statuslineSessions.other.colors.outerBg).toBe(
+      DEFAULT_CONFIG.statuslineSessions.other.colors.outerBg,
+    )
     expect(result.config.statuslineSessions.showIndex).toBe(true)
     expect(result.config.statuslineCategory).toEqual(
       DEFAULT_CONFIG.statuslineCategory,
@@ -79,6 +92,9 @@ describe("loadConfig", () => {
     const yaml = [
       "statuslineCategory:",
       '  format: "<{category}>"',
+      '  prefix: "["',
+      '  suffix: "]"',
+      "  bold: false",
       "  colors:",
       '    fg: "#ffffff"',
       "",
@@ -94,9 +110,13 @@ describe("loadConfig", () => {
     expect(result.loaded).toBe(true)
     expect(result.config.statuslineCategory).toEqual({
       format: "<{category}>",
+      prefix: "[",
+      suffix: "]",
+      bold: false,
       colors: {
         fg: "#ffffff",
         bg: DEFAULT_CONFIG.statuslineCategory.colors.bg,
+        outerBg: DEFAULT_CONFIG.statuslineCategory.colors.outerBg,
       },
     })
   })

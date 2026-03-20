@@ -105,24 +105,35 @@ sessionManager:
     killWaitMs: 300
 
 statuslineCategory:
-  format: "[{category}]"
+  format: "{category}"
+  prefix: ""
+  suffix: ""
+  bold: true
   colors:
-    fg: "#E8ECF3"
-    bg: "#352F63"
+    fg: "#1C1C1C"
+    bg: "#FAB387"
+    outerBg: "#352F63"
 
 statuslineSessions:
   showIndex: false
-  colors:
-    baseFg: "#A5A1F2"
-    baseBg: "#352F63"
-    currentFg: "#1E1E2E"
-    currentBg: "#B4BEFE"
-    otherFg: "#C6D0F5"
-  fonts:
-    currentPrefix: ""
-    currentSuffix: ""
-    otherPrefix: ""
-    otherSuffix: ""
+  current:
+    format: "{session}"
+    prefix: ""
+    suffix: ""
+    bold: false
+    colors:
+      fg: "#1E1E2E"
+      bg: "#B4BEFE"
+      outerBg: "#352F63"
+  other:
+    format: "{session}"
+    prefix: ""
+    suffix: ""
+    bold: false
+    colors:
+      fg: "#C6D0F5"
+      bg: "#352F63"
+      outerBg: "#352F63"
 
 categories:
   defaultCategory: work
@@ -203,7 +214,8 @@ Last-active session timing:
 - to track plain tmux session switches as well, install the hook below
 - client-scoped category state is stored in tmux server-scoped user options keyed by client name, so it survives session switches on the same client
 
-`statuslineCategory.format` replaces `{category}` with the current category name. If the resolved category is unnamed, the category segment is disabled and prints an empty string.
+`statuslineCategory.format` replaces `{category}` with the current category name. `prefix` and `suffix` are rendered around it, and `colors.outerBg` is used as the outside background for those edge glyphs. If the resolved category is unnamed, the category segment is disabled and prints an empty string.
+`statuslineSessions.current.format` and `statuslineSessions.other.format` replace `{session}` with the rendered session label. When `--show-index` or `showIndex: true` is enabled, that label includes the 1-based index like `1 foo`.
 
 Cycle sessions only inside the current category:
 

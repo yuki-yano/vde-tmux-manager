@@ -29,36 +29,27 @@ export type SessionManagerConfig = {
   kill: SessionManagerKillConfig
 }
 
-export type StatuslineSessionsColorsConfig = {
-  baseFg: string
-  baseBg: string
-  currentFg: string
-  currentBg: string
-  otherFg: string
+export type StatuslineSegmentColorsConfig = {
+  fg: string
+  bg: string
+  outerBg: string
 }
 
-export type StatuslineSessionsFontsConfig = {
-  currentPrefix: string
-  currentSuffix: string
-  otherPrefix: string
-  otherSuffix: string
+export type StatuslineSegmentConfig = {
+  format: string
+  prefix: string
+  suffix: string
+  bold: boolean
+  colors: StatuslineSegmentColorsConfig
 }
 
 export type StatuslineSessionsConfig = {
   showIndex: boolean
-  colors: StatuslineSessionsColorsConfig
-  fonts: StatuslineSessionsFontsConfig
+  current: StatuslineSegmentConfig
+  other: StatuslineSegmentConfig
 }
 
-export type StatuslineCategoryColorsConfig = {
-  fg: string
-  bg: string
-}
-
-export type StatuslineCategoryConfig = {
-  format: string
-  colors: StatuslineCategoryColorsConfig
-}
+export type StatuslineCategoryConfig = StatuslineSegmentConfig
 
 export type CategoryRuleConfig = {
   category: string
@@ -96,12 +87,27 @@ export type PartialConfig = {
   }
   statuslineSessions?: {
     showIndex?: boolean
-    colors?: Partial<StatuslineSessionsColorsConfig>
-    fonts?: Partial<StatuslineSessionsFontsConfig>
+    current?: {
+      format?: string
+      prefix?: string
+      suffix?: string
+      bold?: boolean
+      colors?: Partial<StatuslineSegmentColorsConfig>
+    }
+    other?: {
+      format?: string
+      prefix?: string
+      suffix?: string
+      bold?: boolean
+      colors?: Partial<StatuslineSegmentColorsConfig>
+    }
   }
   statuslineCategory?: {
     format?: string
-    colors?: Partial<StatuslineCategoryColorsConfig>
+    prefix?: string
+    suffix?: string
+    bold?: boolean
+    colors?: Partial<StatuslineSegmentColorsConfig>
   }
   categories?: {
     defaultCategory?: string
@@ -621,15 +627,15 @@ const parseKillConfig = (
   return partial
 }
 
-const parseColorsConfig = (
+const parseStatuslineSegmentColorsConfig = (
   value: unknown,
   path: ReadonlyArray<PropertyKey>,
   issues: ValidationIssue[],
   requiredObject: boolean,
   requiredFields: boolean,
 ):
-  | Partial<StatuslineSessionsColorsConfig>
-  | StatuslineSessionsColorsConfig
+  | Partial<StatuslineSegmentColorsConfig>
+  | StatuslineSegmentColorsConfig
   | undefined => {
   if (value === undefined) {
     if (requiredObject) {
@@ -643,183 +649,7 @@ const parseColorsConfig = (
     return undefined
   }
 
-  ensureNoUnknownKeys(
-    value,
-    ["baseFg", "baseBg", "currentFg", "currentBg", "otherFg"],
-    path,
-    issues,
-  )
-
-  const baseFg = parseNonEmptyString(
-    value.baseFg,
-    [...path, "baseFg"],
-    issues,
-    requiredFields,
-  )
-  const baseBg = parseNonEmptyString(
-    value.baseBg,
-    [...path, "baseBg"],
-    issues,
-    requiredFields,
-  )
-  const currentFg = parseNonEmptyString(
-    value.currentFg,
-    [...path, "currentFg"],
-    issues,
-    requiredFields,
-  )
-  const currentBg = parseNonEmptyString(
-    value.currentBg,
-    [...path, "currentBg"],
-    issues,
-    requiredFields,
-  )
-  const otherFg = parseNonEmptyString(
-    value.otherFg,
-    [...path, "otherFg"],
-    issues,
-    requiredFields,
-  )
-
-  const partial: Partial<StatuslineSessionsColorsConfig> = {}
-  if (baseFg !== undefined) {
-    partial.baseFg = baseFg
-  }
-  if (baseBg !== undefined) {
-    partial.baseBg = baseBg
-  }
-  if (currentFg !== undefined) {
-    partial.currentFg = currentFg
-  }
-  if (currentBg !== undefined) {
-    partial.currentBg = currentBg
-  }
-  if (otherFg !== undefined) {
-    partial.otherFg = otherFg
-  }
-
-  if (requiredFields) {
-    if (
-      partial.baseFg === undefined ||
-      partial.baseBg === undefined ||
-      partial.currentFg === undefined ||
-      partial.currentBg === undefined ||
-      partial.otherFg === undefined
-    ) {
-      return undefined
-    }
-    return partial as StatuslineSessionsColorsConfig
-  }
-
-  return partial
-}
-
-const parseFontsConfig = (
-  value: unknown,
-  path: ReadonlyArray<PropertyKey>,
-  issues: ValidationIssue[],
-  requiredObject: boolean,
-  requiredFields: boolean,
-):
-  | Partial<StatuslineSessionsFontsConfig>
-  | StatuslineSessionsFontsConfig
-  | undefined => {
-  if (value === undefined) {
-    if (requiredObject) {
-      pushIssue(issues, path, "required")
-    }
-    return undefined
-  }
-
-  if (!isRecord(value)) {
-    pushIssue(issues, path, "must be an object")
-    return undefined
-  }
-
-  ensureNoUnknownKeys(
-    value,
-    ["currentPrefix", "currentSuffix", "otherPrefix", "otherSuffix"],
-    path,
-    issues,
-  )
-
-  const currentPrefix = parseString(
-    value.currentPrefix,
-    [...path, "currentPrefix"],
-    issues,
-    requiredFields,
-  )
-  const currentSuffix = parseString(
-    value.currentSuffix,
-    [...path, "currentSuffix"],
-    issues,
-    requiredFields,
-  )
-  const otherPrefix = parseString(
-    value.otherPrefix,
-    [...path, "otherPrefix"],
-    issues,
-    requiredFields,
-  )
-  const otherSuffix = parseString(
-    value.otherSuffix,
-    [...path, "otherSuffix"],
-    issues,
-    requiredFields,
-  )
-
-  const partial: Partial<StatuslineSessionsFontsConfig> = {}
-  if (currentPrefix !== undefined) {
-    partial.currentPrefix = currentPrefix
-  }
-  if (currentSuffix !== undefined) {
-    partial.currentSuffix = currentSuffix
-  }
-  if (otherPrefix !== undefined) {
-    partial.otherPrefix = otherPrefix
-  }
-  if (otherSuffix !== undefined) {
-    partial.otherSuffix = otherSuffix
-  }
-
-  if (requiredFields) {
-    if (
-      partial.currentPrefix === undefined ||
-      partial.currentSuffix === undefined ||
-      partial.otherPrefix === undefined ||
-      partial.otherSuffix === undefined
-    ) {
-      return undefined
-    }
-    return partial as StatuslineSessionsFontsConfig
-  }
-
-  return partial
-}
-
-const parseStatuslineCategoryColorsConfig = (
-  value: unknown,
-  path: ReadonlyArray<PropertyKey>,
-  issues: ValidationIssue[],
-  requiredObject: boolean,
-  requiredFields: boolean,
-):
-  | Partial<StatuslineCategoryColorsConfig>
-  | StatuslineCategoryColorsConfig
-  | undefined => {
-  if (value === undefined) {
-    if (requiredObject) {
-      pushIssue(issues, path, "required")
-    }
-    return undefined
-  }
-
-  if (!isRecord(value)) {
-    pushIssue(issues, path, "must be an object")
-    return undefined
-  }
-
-  ensureNoUnknownKeys(value, ["fg", "bg"], path, issues)
+  ensureNoUnknownKeys(value, ["fg", "bg", "outerBg"], path, issues)
 
   const fg = parseNonEmptyString(
     value.fg,
@@ -833,20 +663,124 @@ const parseStatuslineCategoryColorsConfig = (
     issues,
     requiredFields,
   )
+  const outerBg = parseNonEmptyString(
+    value.outerBg,
+    [...path, "outerBg"],
+    issues,
+    requiredFields,
+  )
 
-  const partial: Partial<StatuslineCategoryColorsConfig> = {}
+  const partial: Partial<StatuslineSegmentColorsConfig> = {}
   if (fg !== undefined) {
     partial.fg = fg
   }
   if (bg !== undefined) {
     partial.bg = bg
   }
+  if (outerBg !== undefined) {
+    partial.outerBg = outerBg
+  }
 
   if (requiredFields) {
-    if (partial.fg === undefined || partial.bg === undefined) {
+    if (
+      partial.fg === undefined ||
+      partial.bg === undefined ||
+      partial.outerBg === undefined
+    ) {
       return undefined
     }
-    return partial as StatuslineCategoryColorsConfig
+    return partial as StatuslineSegmentColorsConfig
+  }
+
+  return partial
+}
+
+const parseStatuslineSegmentConfig = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  requiredObject: boolean,
+  requiredFields: boolean,
+): Partial<StatuslineSegmentConfig> | StatuslineSegmentConfig | undefined => {
+  if (value === undefined) {
+    if (requiredObject) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (!isRecord(value)) {
+    pushIssue(issues, path, "must be an object")
+    return undefined
+  }
+
+  ensureNoUnknownKeys(
+    value,
+    ["format", "prefix", "suffix", "bold", "colors"],
+    path,
+    issues,
+  )
+
+  const format = parseString(
+    value.format,
+    [...path, "format"],
+    issues,
+    requiredFields,
+  )
+  const prefix = parseString(
+    value.prefix,
+    [...path, "prefix"],
+    issues,
+    requiredFields,
+  )
+  const suffix = parseString(
+    value.suffix,
+    [...path, "suffix"],
+    issues,
+    requiredFields,
+  )
+  const bold = parseBoolean(
+    value.bold,
+    [...path, "bold"],
+    issues,
+    requiredFields,
+  )
+  const colors = parseStatuslineSegmentColorsConfig(
+    value.colors,
+    [...path, "colors"],
+    issues,
+    requiredFields,
+    requiredFields,
+  )
+
+  const partial: Partial<StatuslineSegmentConfig> = {}
+  if (format !== undefined) {
+    partial.format = format
+  }
+  if (prefix !== undefined) {
+    partial.prefix = prefix
+  }
+  if (suffix !== undefined) {
+    partial.suffix = suffix
+  }
+  if (bold !== undefined) {
+    partial.bold = bold
+  }
+  if (colors !== undefined) {
+    partial.colors = colors as StatuslineSegmentColorsConfig
+  }
+
+  if (requiredFields) {
+    if (
+      partial.format === undefined ||
+      partial.prefix === undefined ||
+      partial.suffix === undefined ||
+      partial.bold === undefined ||
+      partial.colors === undefined
+    ) {
+      return undefined
+    }
+    return partial as StatuslineSegmentConfig
   }
 
   return partial
@@ -1233,7 +1167,7 @@ const parseStatuslineSessions = (
     return undefined
   }
 
-  ensureNoUnknownKeys(value, ["showIndex", "colors", "fonts"], path, issues)
+  ensureNoUnknownKeys(value, ["showIndex", "current", "other"], path, issues)
 
   const showIndex = parseBoolean(
     value.showIndex,
@@ -1242,16 +1176,16 @@ const parseStatuslineSessions = (
     requiredFields,
   )
 
-  const colors = parseColorsConfig(
-    value.colors,
-    [...path, "colors"],
+  const current = parseStatuslineSegmentConfig(
+    value.current,
+    [...path, "current"],
     issues,
     requiredFields,
     requiredFields,
   )
-  const fonts = parseFontsConfig(
-    value.fonts,
-    [...path, "fonts"],
+  const other = parseStatuslineSegmentConfig(
+    value.other,
+    [...path, "other"],
     issues,
     requiredFields,
     requiredFields,
@@ -1259,25 +1193,25 @@ const parseStatuslineSessions = (
 
   const partial: {
     showIndex?: boolean
-    colors?: Partial<StatuslineSessionsColorsConfig>
-    fonts?: Partial<StatuslineSessionsFontsConfig>
+    current?: Partial<StatuslineSegmentConfig>
+    other?: Partial<StatuslineSegmentConfig>
   } = {}
 
   if (showIndex !== undefined) {
     partial.showIndex = showIndex
   }
-  if (colors !== undefined) {
-    partial.colors = colors as Partial<StatuslineSessionsColorsConfig>
+  if (current !== undefined) {
+    partial.current = current as Partial<StatuslineSegmentConfig>
   }
-  if (fonts !== undefined) {
-    partial.fonts = fonts as Partial<StatuslineSessionsFontsConfig>
+  if (other !== undefined) {
+    partial.other = other as Partial<StatuslineSegmentConfig>
   }
 
   if (requiredFields) {
     if (
       partial.showIndex === undefined ||
-      partial.colors === undefined ||
-      partial.fonts === undefined
+      partial.current === undefined ||
+      partial.other === undefined
     ) {
       return undefined
     }
@@ -1309,7 +1243,12 @@ const parseStatuslineCategory = (
     return undefined
   }
 
-  ensureNoUnknownKeys(value, ["format", "colors"], path, issues)
+  ensureNoUnknownKeys(
+    value,
+    ["format", "prefix", "suffix", "bold", "colors"],
+    path,
+    issues,
+  )
 
   const format = parseString(
     value.format,
@@ -1317,7 +1256,25 @@ const parseStatuslineCategory = (
     issues,
     requiredFields,
   )
-  const colors = parseStatuslineCategoryColorsConfig(
+  const prefix = parseString(
+    value.prefix,
+    [...path, "prefix"],
+    issues,
+    requiredFields,
+  )
+  const suffix = parseString(
+    value.suffix,
+    [...path, "suffix"],
+    issues,
+    requiredFields,
+  )
+  const bold = parseBoolean(
+    value.bold,
+    [...path, "bold"],
+    issues,
+    requiredFields,
+  )
+  const colors = parseStatuslineSegmentColorsConfig(
     value.colors,
     [...path, "colors"],
     issues,
@@ -1329,12 +1286,27 @@ const parseStatuslineCategory = (
   if (format !== undefined) {
     partial.format = format
   }
+  if (prefix !== undefined) {
+    partial.prefix = prefix
+  }
+  if (suffix !== undefined) {
+    partial.suffix = suffix
+  }
+  if (bold !== undefined) {
+    partial.bold = bold
+  }
   if (colors !== undefined) {
-    partial.colors = colors as Partial<StatuslineCategoryColorsConfig>
+    partial.colors = colors as Partial<StatuslineSegmentColorsConfig>
   }
 
   if (requiredFields) {
-    if (partial.format === undefined || partial.colors === undefined) {
+    if (
+      partial.format === undefined ||
+      partial.prefix === undefined ||
+      partial.suffix === undefined ||
+      partial.bold === undefined ||
+      partial.colors === undefined
+    ) {
       return undefined
     }
     return partial as StatuslineCategoryConfig

@@ -10,6 +10,7 @@ import { resolveGhqRoot } from "../../categories/runtime"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 import { parseSessionDetailsList } from "../../tmux/parse"
 import type { SessionDetails, SessionIdentity } from "../../tmux/parse"
+import { renderTmuxStatuslineSegment } from "../../ui/format"
 
 const EXIT_CODE_OK = 0
 const EXIT_CODE_ERROR = 1
@@ -37,17 +38,12 @@ const buildSessionLabel = ({
   index,
   name,
   showIndex,
-  prefix,
-  suffix,
 }: {
   readonly index: number
   readonly name: string
   readonly showIndex: boolean
-  readonly prefix: string
-  readonly suffix: string
 }): string => {
-  const label = showIndex && index <= 9 ? `${String(index)} ${name}` : `${name}`
-  return `${prefix} ${label} ${suffix}`
+  return showIndex && index <= 9 ? `${String(index)} ${name}` : `${name}`
 }
 
 export const renderStatuslineSessions = ({
@@ -59,39 +55,23 @@ export const renderStatuslineSessions = ({
   readonly currentSession: string
   readonly config: ResolvedConfig["statuslineSessions"]
 }): string => {
-  const base = config.colors
-  let output = `#[fg=${base.baseFg},bg=${base.baseBg},nobold]`
+  let output = ""
 
   for (const [index, session] of sessions.entries()) {
+    const segment =
+      session.name === currentSession ? config.current : config.other
+    const label = buildSessionLabel({
+      index: index + 1,
+      name: session.name,
+      showIndex: config.showIndex,
+    })
+
     output += " "
     output += `#[range=session|${session.id}]`
-
-    if (session.name === currentSession) {
-      output += `#[fg=${base.currentBg},bg=${base.baseBg},nobold]`
-      output += `${config.fonts.currentPrefix}`
-      output += `#[fg=${base.currentFg},bg=${base.currentBg},bold]`
-      output += buildSessionLabel({
-        index: index + 1,
-        name: session.name,
-        showIndex: config.showIndex,
-        prefix: "",
-        suffix: "",
-      })
-      output += `#[fg=${base.currentBg},bg=${base.baseBg},nobold]`
-      output += `${config.fonts.currentSuffix}`
-      output += `#[fg=${base.baseFg},bg=${base.baseBg},nobold]`
-    } else {
-      output += `#[fg=${base.otherFg},bg=${base.baseBg},nobold]`
-      output += buildSessionLabel({
-        index: index + 1,
-        name: session.name,
-        showIndex: config.showIndex,
-        prefix: config.fonts.otherPrefix,
-        suffix: config.fonts.otherSuffix,
-      })
-      output += `#[fg=${base.baseFg},bg=${base.baseBg},nobold]`
-    }
-
+    output += renderTmuxStatuslineSegment({
+      content: segment.format.replaceAll("{session}", label),
+      config: segment,
+    })
     output += "#[norange]"
   }
 
