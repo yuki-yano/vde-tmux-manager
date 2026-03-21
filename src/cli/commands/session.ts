@@ -1,4 +1,5 @@
 import { setSessionCategoryOverride } from "../../categories/state"
+import type { OutputWriter } from "../output"
 import { loadConfig } from "../../config/loader"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 
@@ -23,8 +24,8 @@ export const runSession = async (
     loadConfigFn = loadConfig,
   }: {
     readonly programName: string
-    readonly stdout: (line: string) => void
-    readonly stderr: (line: string) => void
+    readonly stdout: OutputWriter
+    readonly stderr: OutputWriter
     readonly tmux?: Pick<TmuxClient, "setSessionOption">
     readonly loadConfigFn?: typeof loadConfig
   },
@@ -35,7 +36,7 @@ export const runSession = async (
     typeof args[2] !== "string" ||
     args.length !== 3
   ) {
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 

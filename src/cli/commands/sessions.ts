@@ -1,6 +1,7 @@
 import { homedir } from "node:os"
 import { resolveGhqRoot } from "../../categories/runtime"
 import { refreshSessionCategories } from "../../categories/state"
+import type { OutputWriter } from "../output"
 import { loadConfig } from "../../config/loader"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 
@@ -27,8 +28,8 @@ export const runSessions = async (
     env = process.env,
   }: {
     readonly programName: string
-    readonly stdout: (line: string) => void
-    readonly stderr: (line: string) => void
+    readonly stdout: OutputWriter
+    readonly stderr: OutputWriter
     readonly tmux?: Pick<TmuxClient, "listSessionDetails" | "setSessionOption">
     readonly loadConfigFn?: typeof loadConfig
     readonly refreshSessionCategoriesFn?: typeof refreshSessionCategories
@@ -36,7 +37,7 @@ export const runSessions = async (
   },
 ): Promise<number> => {
   if (args[0] !== "refresh-category" || args.length !== 1) {
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 

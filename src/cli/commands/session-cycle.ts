@@ -1,6 +1,7 @@
 import { homedir } from "node:os"
 import { resolveGhqRoot } from "../../categories/runtime"
 import { cycleSessionInCurrentCategory } from "../../categories/state"
+import type { OutputWriter } from "../output"
 import { loadConfig } from "../../config/loader"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 
@@ -26,8 +27,8 @@ export const runSessionCycle = async (
     env = process.env,
   }: {
     readonly programName: string
-    readonly stdout: (line: string) => void
-    readonly stderr: (line: string) => void
+    readonly stdout: OutputWriter
+    readonly stderr: OutputWriter
     readonly tmux?: Pick<
       TmuxClient,
       | "currentClientName"
@@ -43,7 +44,7 @@ export const runSessionCycle = async (
 ): Promise<number> => {
   const direction = args[0]
   if (direction !== "next" && direction !== "prev") {
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 

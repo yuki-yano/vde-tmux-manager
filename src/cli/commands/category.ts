@@ -5,6 +5,7 @@ import {
   resolveAdjacentCategory,
   useCategoryAndSwitchToLastSession,
 } from "../../categories/state"
+import type { OutputWriter } from "../output"
 import { loadConfig } from "../../config/loader"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 
@@ -32,8 +33,8 @@ export const runCategory = async (
     env = process.env,
   }: {
     readonly programName: string
-    readonly stdout: (line: string) => void
-    readonly stderr: (line: string) => void
+    readonly stdout: OutputWriter
+    readonly stderr: OutputWriter
     readonly tmux?: Pick<
       TmuxClient,
       | "currentClientName"
@@ -49,7 +50,7 @@ export const runCategory = async (
 ): Promise<number> => {
   if (args[0] === "next" || args[0] === "prev") {
     if (args.length !== 1) {
-      stderr(`[USAGE] ${usageText(programName)}`)
+      await stderr(`[USAGE] ${usageText(programName)}`)
       return EXIT_CODE_USAGE
     }
 
@@ -71,7 +72,7 @@ export const runCategory = async (
   }
 
   if (args[0] !== "use" || typeof args[1] !== "string" || args.length !== 2) {
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 

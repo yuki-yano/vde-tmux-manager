@@ -26,6 +26,7 @@ describe("runMain", () => {
       argv: ["node", "/tmp/bin/vtm", "--help"],
       stdout: stdout.write,
       stderr: stderr.write,
+      env: {},
     })
 
     expect(exitCode).toBe(0)
@@ -39,6 +40,7 @@ describe("runMain", () => {
     const exitCode = await runMain({
       argv: ["node", "/tmp/bin/vde-tmux-manager", "unknown"],
       stderr: stderr.write,
+      env: {},
     })
 
     expect(exitCode).toBe(1)
@@ -57,6 +59,7 @@ describe("runMain", () => {
     const exitCode = await runMain({
       argv,
       stderr: stderr.write,
+      env: {},
     })
 
     expect(exitCode).toBe(1)
@@ -75,10 +78,50 @@ describe("runMain", () => {
     const exitCode = await runMain({
       argv,
       stderr: stderr.write,
+      env: {},
     })
 
     expect(exitCode).toBe(1)
     expect(stderr.lines.join("\n")).toContain("[UNEXPECTED_ERROR] string-error")
+  })
+
+  it("reports errors to tmux status messages when running inside tmux", async () => {
+    const stderr = createLineCollector()
+    const reportTmuxErrorFn = vi.fn(async () => true)
+
+    const exitCode = await runMain({
+      argv: ["node", "/tmp/bin/vde-tmux-manager", "unknown"],
+      stderr: stderr.write,
+      env: {
+        TMUX: "/tmp/tmux-1000/default,123,0",
+      },
+      reportTmuxErrorFn,
+    })
+
+    expect(exitCode).toBe(1)
+    expect(reportTmuxErrorFn).toHaveBeenCalledWith({
+      message: "[UNKNOWN_COMMAND] Unknown command: unknown",
+      env: {
+        TMUX: "/tmp/tmux-1000/default,123,0",
+      },
+    })
+    expect(stderr.lines).toHaveLength(0)
+  })
+
+  it("falls back to stderr when tmux status reporting fails", async () => {
+    const stderr = createLineCollector()
+
+    const exitCode = await runMain({
+      argv: ["node", "/tmp/bin/vde-tmux-manager", "unknown"],
+      stderr: stderr.write,
+      env: {
+        TMUX: "/tmp/tmux-1000/default,123,0",
+      },
+      reportTmuxErrorFn: vi.fn(async () => false),
+    })
+
+    expect(exitCode).toBe(1)
+    expect(stderr.lines.join("\n")).toContain("Unknown command: unknown")
   })
 })
 

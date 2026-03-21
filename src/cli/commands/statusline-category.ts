@@ -3,6 +3,7 @@ import { loadConfig } from "../../config/loader"
 import type { ResolvedConfig } from "../../config/schema"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 import { renderTmuxStatuslineSegment } from "../../ui/format"
+import type { OutputWriter } from "../output"
 
 const EXIT_CODE_OK = 0
 const EXIT_CODE_USAGE = 2
@@ -42,25 +43,25 @@ export const runStatuslineCategory = async (
     loadConfigFn = loadConfig,
   }: {
     readonly programName: string
-    readonly stdout: (line: string) => void
-    readonly stderr: (line: string) => void
+    readonly stdout: OutputWriter
+    readonly stderr: OutputWriter
     readonly tmux?: Pick<TmuxClient, "currentClientName" | "showClientOption">
     readonly loadConfigFn?: typeof loadConfig
   },
 ): Promise<number> => {
   if (args.length > 0 && isHelpFlag(args[0] as string)) {
-    stdout(usageText(programName))
+    await stdout(usageText(programName))
     return EXIT_CODE_OK
   }
 
   if (args.length > 0) {
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 
   const { config } = await loadConfigFn()
   const categoryName = await getCurrentCategory({ tmux, config })
-  stdout(
+  await stdout(
     renderStatuslineCategory({
       categoryName,
       config: config.statuslineCategory,

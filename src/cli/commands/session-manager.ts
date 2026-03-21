@@ -35,6 +35,7 @@ import {
   truncateVisible,
   visibleWidth,
 } from "../../ui/format"
+import type { OutputWriter } from "../output"
 
 const EXIT_CODE_OK = 0
 const EXIT_CODE_ERROR = 1
@@ -96,8 +97,8 @@ const parseAllWindowsBySession = (
 
 export type RunSessionManagerDeps = {
   readonly programName: string
-  readonly stdout: (line: string) => void
-  readonly stderr: (line: string) => void
+  readonly stdout: OutputWriter
+  readonly stderr: OutputWriter
   readonly tmux?: TmuxClient
   readonly loadConfigFn?: typeof loadConfig
   readonly runCommandFn?: typeof runCommand
@@ -516,7 +517,7 @@ const runDirectCommand = async ({
   readonly tmux: TmuxClient
   readonly config: ResolvedConfig
   readonly runner: typeof runCommand
-  readonly stderr: (line: string) => void
+  readonly stderr: OutputWriter
   readonly programName: string
 }): Promise<number | null> => {
   const [name, target] = positional
@@ -525,12 +526,12 @@ const runDirectCommand = async ({
   }
 
   if (isHelpFlag(target ?? "")) {
-    stderr(`Usage: ${programName} session-manager ${name} <target>`)
+    await stderr(`Usage: ${programName} session-manager ${name} <target>`)
     return EXIT_CODE_OK
   }
 
   if (typeof target !== "string" || target.length === 0) {
-    stderr(`Usage: ${programName} session-manager ${name} <target>`)
+    await stderr(`Usage: ${programName} session-manager ${name} <target>`)
     return EXIT_CODE_USAGE
   }
 
@@ -611,7 +612,7 @@ const runSelection = async ({
   readonly tmux: TmuxClient
   readonly config: ResolvedConfig
   readonly popup: boolean
-  readonly stderr: (line: string) => void
+  readonly stderr: OutputWriter
   readonly runner: typeof runCommand
   readonly env: NodeJS.ProcessEnv
 }): Promise<void> => {
@@ -705,7 +706,7 @@ const runSelection = async ({
     }
 
     if (typeof env.TMUX !== "string" || env.TMUX.length === 0) {
-      stderr(
+      await stderr(
         "[SESSION_RENAME_UNAVAILABLE] session rename requires tmux client context",
       )
       return
@@ -786,7 +787,7 @@ export const runSessionManager = async (
   }: RunSessionManagerDeps,
 ): Promise<number> => {
   if (args.length > 0 && isHelpFlag(args[0] as string)) {
-    stdout(usageText(programName))
+    await stdout(usageText(programName))
     return EXIT_CODE_OK
   }
 
@@ -795,8 +796,8 @@ export const runSessionManager = async (
     options = parseOptions(args)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    stderr(`[USAGE] ${message}`)
-    stderr(usageText(programName))
+    await stderr(`[USAGE] ${message}`)
+    await stderr(usageText(programName))
     return EXIT_CODE_USAGE
   }
 
@@ -829,7 +830,7 @@ export const runSessionManager = async (
   }
 
   if (options.positional.length > 0) {
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 

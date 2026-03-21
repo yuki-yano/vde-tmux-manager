@@ -432,4 +432,27 @@ describe("runStatuslineSessions", () => {
     expect(stderr.lines.join("\n")).toContain("session not found at index 2")
     expect(tmux.switchClient).not.toHaveBeenCalled()
   })
+
+  it("awaits async stderr writers before returning on switch errors", async () => {
+    let reported = false
+
+    const exitCode = await runStatuslineSessions(["switch", "0"], {
+      programName: "vtm",
+      stdout: (): void => undefined,
+      stderr: async (): Promise<void> => {
+        await Promise.resolve()
+        reported = true
+      },
+      tmux: {
+        listSessionDetails: vi.fn(async () => []),
+        currentSession: vi.fn(async () => "dev"),
+        currentClientName: vi.fn(async () => "/dev/ttys001"),
+        showClientOption: vi.fn(async () => "work"),
+        switchClient: vi.fn(async () => undefined),
+      },
+    })
+
+    expect(exitCode).toBe(2)
+    expect(reported).toBe(true)
+  })
 })

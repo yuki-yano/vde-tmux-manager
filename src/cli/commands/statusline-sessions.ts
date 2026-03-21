@@ -11,6 +11,7 @@ import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 import { parseSessionDetailsList } from "../../tmux/parse"
 import type { SessionDetails, SessionIdentity } from "../../tmux/parse"
 import { renderTmuxStatuslineSegment } from "../../ui/format"
+import type { OutputWriter } from "../output"
 
 const EXIT_CODE_OK = 0
 const EXIT_CODE_ERROR = 1
@@ -80,8 +81,8 @@ export const renderStatuslineSessions = ({
 
 export type RunStatuslineSessionsDeps = {
   readonly programName: string
-  readonly stdout: (line: string) => void
-  readonly stderr: (line: string) => void
+  readonly stdout: OutputWriter
+  readonly stderr: OutputWriter
   readonly tmux?: Pick<
     TmuxClient,
     | "listSessionDetails"
@@ -206,19 +207,19 @@ export const runStatuslineSessions = async (
   }: RunStatuslineSessionsDeps,
 ): Promise<number> => {
   if (args.length > 0 && isHelpFlag(args[0] as string)) {
-    stdout(usageText(programName))
+    await stdout(usageText(programName))
     return EXIT_CODE_OK
   }
 
   if (args[0] === "switch") {
     if (args.length !== 2) {
-      stderr(`[USAGE] ${usageText(programName)}`)
+      await stderr(`[USAGE] ${usageText(programName)}`)
       return EXIT_CODE_USAGE
     }
 
     const targetIndex = parseSwitchIndex(args[1] as string)
     if (targetIndex === null) {
-      stderr(
+      await stderr(
         `${programName} statusline-sessions: index must be a positive integer: ${args[1]}`,
       )
       return EXIT_CODE_USAGE
@@ -250,7 +251,7 @@ export const runStatuslineSessions = async (
     })
 
     if (targetSessionName === null) {
-      stderr(
+      await stderr(
         `${programName} statusline-sessions: session not found at index ${targetIndex}`,
       )
       return EXIT_CODE_ERROR
@@ -291,7 +292,7 @@ export const runStatuslineSessions = async (
       continue
     }
 
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 
@@ -311,7 +312,7 @@ export const runStatuslineSessions = async (
       ghqRoot,
     }),
   )
-  stdout(
+  await stdout(
     renderStatuslineSessions({
       sessions,
       currentSession,

@@ -8,6 +8,7 @@ import { runSessionManager } from "./commands/session-manager"
 import { runSessions } from "./commands/sessions"
 import { runStatuslineCategory } from "./commands/statusline-category"
 import { runStatuslineSessions } from "./commands/statusline-sessions"
+import type { OutputWriter } from "./output"
 
 export type CLI = {
   run(args?: readonly string[]): Promise<number>
@@ -16,8 +17,8 @@ export type CLI = {
 type CliOptions = {
   readonly programName?: string
   readonly version?: string
-  readonly stdout?: (line: string) => void
-  readonly stderr?: (line: string) => void
+  readonly stdout?: OutputWriter
+  readonly stderr?: OutputWriter
 }
 
 type CommandHelp = {
@@ -130,19 +131,19 @@ export const createCli = (options: CliOptions = {}): CLI => {
 
   const run = async (args: readonly string[] = []): Promise<number> => {
     if (args.length === 0) {
-      stdout(renderHelpText({ programName, version }))
+      await stdout(renderHelpText({ programName, version }))
       return EXIT_CODE.OK
     }
 
     const [command, ...rest] = args as readonly [string, ...string[]]
 
     if (isHelpFlag(command)) {
-      stdout(renderHelpText({ programName, version }))
+      await stdout(renderHelpText({ programName, version }))
       return EXIT_CODE.OK
     }
 
     if (isVersionFlag(command)) {
-      stdout(version)
+      await stdout(version)
       return EXIT_CODE.OK
     }
 
@@ -219,17 +220,17 @@ export const createCli = (options: CliOptions = {}): CLI => {
         })
       }
     } catch (error) {
-      stderr(`[COMMAND_FAILED] ${toUnexpectedErrorText(error)}`)
+      await stderr(`[COMMAND_FAILED] ${toUnexpectedErrorText(error)}`)
       return EXIT_CODE.UNKNOWN_COMMAND
     }
 
     if (command.startsWith("-")) {
-      stderr(`[USAGE] Unknown option: ${command}`)
-      stderr(renderHelpText({ programName, version }))
+      await stderr(`[USAGE] Unknown option: ${command}`)
+      await stderr(renderHelpText({ programName, version }))
       return EXIT_CODE.USAGE_ERROR
     }
 
-    stderr(`[UNKNOWN_COMMAND] Unknown command: ${command}`)
+    await stderr(`[UNKNOWN_COMMAND] Unknown command: ${command}`)
     return EXIT_CODE.UNKNOWN_COMMAND
   }
 

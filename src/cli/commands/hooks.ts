@@ -4,6 +4,7 @@ import {
   rememberCurrentSessionForCurrentClient,
   rememberSessionForClient,
 } from "../../categories/state"
+import type { OutputWriter } from "../output"
 import { loadConfig } from "../../config/loader"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
 
@@ -29,8 +30,8 @@ export const runHooks = async (
     env = process.env,
   }: {
     readonly programName: string
-    readonly stdout: (line: string) => void
-    readonly stderr: (line: string) => void
+    readonly stdout: OutputWriter
+    readonly stderr: OutputWriter
     readonly tmux?: Pick<
       TmuxClient,
       | "currentClientName"
@@ -44,7 +45,7 @@ export const runHooks = async (
   },
 ): Promise<number> => {
   if (args[0] !== "on-client-session-changed") {
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 
@@ -78,6 +79,6 @@ export const runHooks = async (
     return EXIT_CODE_OK
   }
 
-  stderr(`[USAGE] ${usageText(programName)}`)
+  await stderr(`[USAGE] ${usageText(programName)}`)
   return EXIT_CODE_USAGE
 }

@@ -1,4 +1,5 @@
 import { homedir } from "node:os"
+import type { OutputWriter } from "../output"
 import { loadConfig } from "../../config/loader"
 import { runCommand } from "../../process/exec"
 import { createTmuxClient, type TmuxClient } from "../../tmux/client"
@@ -27,8 +28,8 @@ export const runProject = async (
     env = process.env,
   }: {
     readonly programName: string
-    readonly stdout: (line: string) => void
-    readonly stderr: (line: string) => void
+    readonly stdout: OutputWriter
+    readonly stderr: OutputWriter
     readonly tmux?: Pick<
       TmuxClient,
       | "listSessionDetails"
@@ -50,7 +51,7 @@ export const runProject = async (
     typeof args[1] !== "string" ||
     args.length !== 2
   ) {
-    stderr(`[USAGE] ${usageText(programName)}`)
+    await stderr(`[USAGE] ${usageText(programName)}`)
     return EXIT_CODE_USAGE
   }
 
