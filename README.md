@@ -174,7 +174,7 @@ Path rules use first-match-wins. For GHQ projects, matching is done against the 
 
 Unknown config keys are ignored during config loading so newer or extra keys do not make `vtm` fail at startup.
 
-Category names remain strings. Use `categories.order` to assign integer ordering, and `vtm category next` / `vtm category prev` use that order.
+Category names remain strings. Use `categories.order` to assign integer ordering. `vtm category next` / `vtm category prev` and the category grouping inside `vtm session-manager` use that order.
 
 When `categories` is omitted, every session belongs to one unnamed category. In that mode, session cycling and statusline session switching continue to operate across all sessions, similar to the pre-category behavior, and `vtm statusline-category` renders nothing.
 

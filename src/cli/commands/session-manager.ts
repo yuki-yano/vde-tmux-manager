@@ -4,6 +4,7 @@ import {
   resolveEffectiveSessionCategory,
   switchClientAndRememberSession,
 } from "../../categories/state"
+import { sortCategories } from "../../categories/matcher"
 import { resolveGhqRoot } from "../../categories/runtime"
 import { loadConfig } from "../../config/loader"
 import type { ResolvedConfig } from "../../config/schema"
@@ -226,6 +227,7 @@ const collectSessions = async ({
 const buildRows = (
   sessions: ReadonlyArray<SessionWithWindows>,
   currentCategory: string,
+  categoryOrder: Readonly<Record<string, number>> = {},
 ): Array<{
   action: "session" | "window" | "server"
   name: string
@@ -261,13 +263,17 @@ const buildRows = (
     return chalk.gray(SYMBOLS.activityIdle)
   }
 
+  const categoryRanks = new Map(
+    sortCategories(
+      Array.from(new Set(sessions.map((session) => session.category))),
+      categoryOrder,
+    ).map((category, index) => [category, index]),
+  )
+
   const orderedSessions = [...sessions].sort((left, right) => {
-    const leftCurrent = left.category === currentCategory ? 0 : 1
-    const rightCurrent = right.category === currentCategory ? 0 : 1
-    if (leftCurrent !== rightCurrent) {
-      return leftCurrent - rightCurrent
-    }
-    const categoryCompare = left.category.localeCompare(right.category)
+    const categoryCompare =
+      (categoryRanks.get(left.category) ?? Number.POSITIVE_INFINITY) -
+      (categoryRanks.get(right.category) ?? Number.POSITIVE_INFINITY)
     if (categoryCompare !== 0) {
       return categoryCompare
     }
@@ -409,8 +415,9 @@ const renderRows = (
 const buildEntries = (
   sessions: ReadonlyArray<SessionWithWindows>,
   currentCategory: string,
+  categoryOrder: Readonly<Record<string, number>> = {},
 ): SelectorEntry[] => {
-  return renderRows(buildRows(sessions, currentCategory))
+  return renderRows(buildRows(sessions, currentCategory, categoryOrder))
 }
 
 const parseSelectionLines = (
@@ -861,7 +868,11 @@ export const runSessionManager = async (
     return EXIT_CODE_OK
   }
 
-  const entries = buildEntries(sessions, currentCategory)
+  const entries = buildEntries(
+    sessions,
+    currentCategory,
+    config.categories.order,
+  )
   const executable = argv[1] ?? "vtm"
   const previewCommand = `FORCE_COLOR=1 PREVIEW_REFRESH_MS=${config.sessionManager.fzf.previewRefreshMs} ${shellEscape(executable)} session-manager --popup --render-preview {1} --preview-name {2}`
   const headerText = `Current [${currentCategory}] | Enter switch | C-q kill | C-t new | C-r rename | C-d/C-u scroll`

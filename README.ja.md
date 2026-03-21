@@ -174,7 +174,7 @@ path rule は上から順に first-match-wins です。GHQ 配下は `github.com
 
 想定外の設定キーは config load 時に無視されるため、余分なキーがあっても `vtm` は起動エラーになりません。
 
-category 名は文字列のまま使い、整数順は `categories.order` で別に定義します。`vtm category next` / `vtm category prev` はその順序で切り替えます。
+category 名は文字列のまま使い、整数順は `categories.order` で別に定義します。`vtm category next` / `vtm category prev` と `vtm session-manager` 内の category グルーピングはその順序を使います。
 
 `categories` を設定しない場合は、全 session が 1 つの無名 category に所属します。このとき session-cycle や statusline-sessions switch は全 session を対象に動作し、`vtm statusline-category` は何も表示しません。
 

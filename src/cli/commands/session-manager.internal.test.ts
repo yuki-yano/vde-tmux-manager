@@ -271,6 +271,48 @@ describe("session-manager internals", () => {
     expect(serverEntry?.display).not.toContain("[work]")
   })
 
+  it("orders categories in session manager by categories.order", () => {
+    const entries = __internal.buildEntries(
+      [
+        {
+          id: "$1",
+          name: "dev",
+          attachedClients: 1,
+          lastActivity: 100,
+          category: "work",
+          projectPath: "/Users/test/ghq/github.com/company/dev",
+          categoryOverride: "",
+          windows: [],
+          totalWindows: 0,
+          totalPanes: 0,
+          isCurrent: true,
+        },
+        {
+          id: "$2",
+          name: "notes",
+          attachedClients: 0,
+          lastActivity: 50,
+          category: "private",
+          projectPath: "/tmp/notes",
+          categoryOverride: "",
+          windows: [],
+          totalWindows: 0,
+          totalPanes: 0,
+          isCurrent: false,
+        },
+      ],
+      "work",
+      {
+        private: 1,
+        work: 2,
+      },
+    )
+
+    const sessionEntries = entries.filter((entry) => entry.action === "session")
+    expect(sessionEntries[0]?.name).toBe("notes")
+    expect(sessionEntries[1]?.name).toBe("dev")
+  })
+
   it("opens popup when running in tmux", async () => {
     const tmux = createTmuxMock()
     tmux.run
