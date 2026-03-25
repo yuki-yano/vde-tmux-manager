@@ -1,6 +1,7 @@
 import { homedir } from "node:os"
 import { resolveGhqRoot } from "../../categories/runtime"
 import {
+  getOrderedCategoriesWithSessions,
   getCurrentCategory,
   resolveAdjacentCategory,
   useCategoryAndSwitchToLastSession,
@@ -56,14 +57,24 @@ export const runCategory = async (
 
     const { config } = await loadConfigFn()
     const ghqRoot = await resolveGhqRoot({ config, env })
+    const sessionDetails = await tmux.listSessionDetails()
+    const orderedCategories = getOrderedCategoriesWithSessions({
+      sessions: sessionDetails,
+      config,
+      homeDirectory: env.HOME ?? homedir(),
+      ghqRoot,
+    })
+    if (orderedCategories.length === 0) {
+      return EXIT_CODE_OK
+    }
     const currentCategory = await getCurrentCategory({ tmux, config })
     await useCategoryAndSwitchToLastSession({
       tmux,
       config,
       categoryName: resolveAdjacentCategory({
-        config,
         currentCategory,
         direction: args[0],
+        orderedCategories,
       }),
       homeDirectory: env.HOME ?? homedir(),
       ghqRoot,

@@ -37,16 +37,49 @@ export const getOrderedCategories = (config: ResolvedConfig): string[] => {
   )
 }
 
-export const resolveAdjacentCategory = ({
+export const getOrderedCategoriesWithSessions = ({
+  sessions,
   config,
+  homeDirectory,
+  ghqRoot,
+}: {
+  readonly sessions: ReadonlyArray<SessionDetails>
+  readonly config: ResolvedConfig
+  readonly homeDirectory: string
+  readonly ghqRoot?: string | null
+}): string[] => {
+  const categoriesWithSessions = new Set(
+    sessions.map((session) =>
+      resolveEffectiveSessionCategory({
+        session,
+        config,
+        homeDirectory,
+        ghqRoot,
+      }),
+    ),
+  )
+
+  return getOrderedCategories(config).filter((categoryName) =>
+    categoriesWithSessions.has(categoryName),
+  )
+}
+
+export const resolveAdjacentCategory = ({
   currentCategory,
   direction,
+  config,
+  orderedCategories,
 }: {
-  readonly config: ResolvedConfig
   readonly currentCategory: string
   readonly direction: "next" | "prev"
+  readonly config?: ResolvedConfig
+  readonly orderedCategories?: readonly string[]
 }): string => {
-  const categories = getOrderedCategories(config)
+  const categories =
+    orderedCategories ?? (config ? getOrderedCategories(config) : undefined)
+  if (categories === undefined) {
+    throw new Error("config or orderedCategories is required")
+  }
   if (categories.length === 0) {
     throw new Error("no categories defined")
   }
@@ -54,11 +87,16 @@ export const resolveAdjacentCategory = ({
   const currentIndex = categories.findIndex(
     (category) => category === currentCategory,
   )
-  const baseIndex = currentIndex === -1 ? 0 : currentIndex
+  if (currentIndex === -1) {
+    return direction === "next"
+      ? (categories[0] ?? "")
+      : (categories[categories.length - 1] ?? "")
+  }
+
   const nextIndex =
     direction === "next"
-      ? (baseIndex + 1) % categories.length
-      : (baseIndex - 1 + categories.length) % categories.length
+      ? (currentIndex + 1) % categories.length
+      : (currentIndex - 1 + categories.length) % categories.length
   return categories[nextIndex] ?? categories[0] ?? ""
 }
 

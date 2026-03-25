@@ -49,7 +49,17 @@ export type StatuslineSessionsConfig = {
   other: StatuslineSegmentConfig
 }
 
-export type StatuslineCategoryConfig = StatuslineSegmentConfig
+export type StatuslineCategoryMode = "current" | "list"
+
+export type StatuslineCategoryConfig = {
+  mode: StatuslineCategoryMode
+  format: string
+  prefix: string
+  suffix: string
+  bold: boolean
+  colors: StatuslineSegmentColorsConfig
+  inactiveColors: StatuslineSegmentColorsConfig
+}
 
 export type CategoryRuleConfig = {
   category: string
@@ -64,6 +74,7 @@ export type SessionNameRuleConfig = {
 
 export type CategoriesConfig = {
   defaultCategory: string
+  displayNames?: Readonly<Record<string, string>>
   order?: Readonly<Record<string, number>>
   rules: readonly CategoryRuleConfig[]
   sessionNameRules: readonly SessionNameRuleConfig[]
@@ -103,14 +114,17 @@ export type PartialConfig = {
     }
   }
   statuslineCategory?: {
+    mode?: StatuslineCategoryMode
     format?: string
     prefix?: string
     suffix?: string
     bold?: boolean
     colors?: Partial<StatuslineSegmentColorsConfig>
+    inactiveColors?: Partial<StatuslineSegmentColorsConfig>
   }
   categories?: {
     defaultCategory?: string
+    displayNames?: Record<string, string>
     order?: Record<string, number>
     rules?: Array<{
       category?: string
@@ -344,6 +358,54 @@ const parseIntegerRecord = (
   }
 
   return result
+}
+
+const parseNonEmptyStringRecord = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  required: boolean,
+): Record<string, string> | undefined => {
+  if (value === undefined) {
+    if (required) {
+      pushIssue(issues, path, "required")
+    }
+    return undefined
+  }
+
+  if (!isRecord(value)) {
+    pushIssue(issues, path, "must be an object")
+    return undefined
+  }
+
+  const result: Record<string, string> = {}
+  for (const [key, rawValue] of Object.entries(value)) {
+    const parsed = parseNonEmptyString(rawValue, [...path, key], issues, true)
+    if (parsed !== undefined) {
+      result[key] = parsed
+    }
+  }
+
+  return result
+}
+
+const parseStatuslineCategoryMode = (
+  value: unknown,
+  path: ReadonlyArray<PropertyKey>,
+  issues: ValidationIssue[],
+  required: boolean,
+): StatuslineCategoryMode | undefined => {
+  const parsed = parseNonEmptyString(value, path, issues, required)
+  if (parsed === undefined) {
+    return undefined
+  }
+
+  if (parsed !== "current" && parsed !== "list") {
+    pushIssue(issues, path, "must be one of: current, list")
+    return undefined
+  }
+
+  return parsed
 }
 
 const parsePopupConfig = (
@@ -990,7 +1052,7 @@ const parseCategories = (
 
   ensureNoUnknownKeys(
     value,
-    ["defaultCategory", "order", "rules", "sessionNameRules"],
+    ["defaultCategory", "displayNames", "order", "rules", "sessionNameRules"],
     path,
     issues,
   )
@@ -1000,6 +1062,12 @@ const parseCategories = (
     [...path, "defaultCategory"],
     issues,
     requiredFields,
+  )
+  const displayNames = parseNonEmptyStringRecord(
+    value.displayNames,
+    [...path, "displayNames"],
+    issues,
+    false,
   )
   const order = parseIntegerRecord(
     value.order,
@@ -1026,6 +1094,9 @@ const parseCategories = (
   if (defaultCategory !== undefined) {
     partial.defaultCategory = defaultCategory
   }
+  if (displayNames !== undefined) {
+    partial.displayNames = displayNames
+  }
   if (order !== undefined) {
     partial.order = order
   }
@@ -1044,6 +1115,7 @@ const parseCategories = (
     }
     return {
       defaultCategory: partial.defaultCategory,
+      displayNames: partial.displayNames ?? {},
       order: partial.order ?? {},
       rules: (partial.rules ?? []).map((rule) => ({
         category: rule?.category ?? "",
@@ -1245,11 +1317,17 @@ const parseStatuslineCategory = (
 
   ensureNoUnknownKeys(
     value,
-    ["format", "prefix", "suffix", "bold", "colors"],
+    ["mode", "format", "prefix", "suffix", "bold", "colors", "inactiveColors"],
     path,
     issues,
   )
 
+  const mode = parseStatuslineCategoryMode(
+    value.mode,
+    [...path, "mode"],
+    issues,
+    requiredFields,
+  )
   const format = parseString(
     value.format,
     [...path, "format"],
@@ -1281,8 +1359,18 @@ const parseStatuslineCategory = (
     requiredFields,
     requiredFields,
   )
+  const inactiveColors = parseStatuslineSegmentColorsConfig(
+    value.inactiveColors,
+    [...path, "inactiveColors"],
+    issues,
+    false,
+    requiredFields,
+  )
 
   const partial: NonNullable<PartialConfig["statuslineCategory"]> = {}
+  if (mode !== undefined) {
+    partial.mode = mode
+  }
   if (format !== undefined) {
     partial.format = format
   }
@@ -1298,14 +1386,20 @@ const parseStatuslineCategory = (
   if (colors !== undefined) {
     partial.colors = colors as Partial<StatuslineSegmentColorsConfig>
   }
+  if (inactiveColors !== undefined) {
+    partial.inactiveColors =
+      inactiveColors as Partial<StatuslineSegmentColorsConfig>
+  }
 
   if (requiredFields) {
     if (
+      partial.mode === undefined ||
       partial.format === undefined ||
       partial.prefix === undefined ||
       partial.suffix === undefined ||
       partial.bold === undefined ||
-      partial.colors === undefined
+      partial.colors === undefined ||
+      partial.inactiveColors === undefined
     ) {
       return undefined
     }

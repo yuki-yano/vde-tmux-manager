@@ -57,6 +57,7 @@ pnpm add -g vde-tmux-manager
 - `vtm session set-category <session> <category>`
 - `vtm sessions refresh-category`
 - `vtm statusline-category`
+- `vtm statusline-category switch 2`
 - `vtm statusline-sessions`
 - `vtm statusline-sessions switch 2`
 - `vtm --help`
@@ -105,6 +106,7 @@ sessionManager:
     killWaitMs: 300
 
 statuslineCategory:
+  mode: current
   format: "{category}"
   prefix: ""
   suffix: ""
@@ -112,6 +114,10 @@ statuslineCategory:
   colors:
     fg: "#1C1C1C"
     bg: "#FAB387"
+    outerBg: "#352F63"
+  inactiveColors:
+    fg: "#C6D0F5"
+    bg: "#352F63"
     outerBg: "#352F63"
 
 statuslineSessions:
@@ -137,6 +143,10 @@ statuslineSessions:
 
 categories:
   defaultCategory: work
+  displayNames:
+    work: Work
+    private: Private
+    oss: OSS
   order:
     work: 10
     private: 20
@@ -214,8 +224,14 @@ Last-active session timing:
 - to track plain tmux session switches as well, install the hook below
 - client-scoped category state is stored in tmux server-scoped user options keyed by client name, so it survives session switches on the same client
 
-`statuslineCategory.format` replaces `{category}` with the current category name. `prefix` and `suffix` are rendered around it, and `colors.outerBg` is used as the outside background for those edge glyphs. If the resolved category is unnamed, the category segment is disabled and prints an empty string.
+`statuslineCategory.format` replaces `{category}` with the statusline display name. By default that matches the internal category name, and `categories.displayNames` lets you override it without changing tmux state or command names. `mode: current` renders only the active category. `mode: list` renders ordered categories horizontally, using `colors` for the active item and `inactiveColors` for the rest. `prefix` and `suffix` are rendered around each category body, and `outerBg` controls the background behind those edge glyphs. If the resolved category is unnamed, `current` mode prints an empty string and `list` mode skips unnamed categories.
 `statuslineSessions.current.format` and `statuslineSessions.other.format` replace `{session}` with the rendered session label. When `--show-index` or `showIndex: true` is enabled, that label includes the 1-based index like `1 foo`.
+
+```tmux
+bind-key -n MouseDown1Status if-shell -F '#{m/r:^[0-9]+$,#{mouse_status_range}}' \
+  'run-shell "vtm statusline-category switch #{mouse_status_range}"' \
+  'switch-client -t ='
+```
 
 Cycle sessions only inside the current category:
 

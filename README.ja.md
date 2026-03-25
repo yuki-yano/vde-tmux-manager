@@ -57,6 +57,7 @@ pnpm add -g vde-tmux-manager
 - `vtm session set-category <session> <category>`
 - `vtm sessions refresh-category`
 - `vtm statusline-category`
+- `vtm statusline-category switch 2`
 - `vtm statusline-sessions`
 - `vtm statusline-sessions switch 2`
 - `vtm --help`
@@ -105,6 +106,7 @@ sessionManager:
     killWaitMs: 300
 
 statuslineCategory:
+  mode: current
   format: "{category}"
   prefix: ""
   suffix: ""
@@ -112,6 +114,10 @@ statuslineCategory:
   colors:
     fg: "#1C1C1C"
     bg: "#FAB387"
+    outerBg: "#352F63"
+  inactiveColors:
+    fg: "#C6D0F5"
+    bg: "#352F63"
     outerBg: "#352F63"
 
 statuslineSessions:
@@ -137,6 +143,10 @@ statuslineSessions:
 
 categories:
   defaultCategory: work
+  displayNames:
+    work: Work
+    private: Private
+    oss: OSS
   order:
     work: 10
     private: 20
@@ -214,8 +224,14 @@ last active session の記録タイミング:
 - tmux 標準操作の session 切替も追跡したい場合は、以下の hook 設定を入れてください
 - client ごとの category state は、client 名を埋め込んだ tmux server-scoped user option に保存されるため、同一 client 上の session 切替では失われません
 
-`statuslineCategory.format` では `{category}` が現在の category 名に置換されます。`prefix` / `suffix` は前後にそのまま描画され、`colors.outerBg` はその外側背景色として使われます。解決後の category が無名なら、category セグメント自体を表示しません。
+`statuslineCategory.format` の `{category}` には statusline 用の表示名が入ります。通常は内部 category 名そのままですが、`categories.displayNames` で内部名を変えずに表示名だけ差し替えられます。`mode: current` は現在の category だけを表示し、`mode: list` は `categories.order` 順で category を横並び表示します。`colors` はアクティブ項目、`inactiveColors` は非アクティブ項目に使われます。`prefix` / `suffix` は各 category 本体の前後に描画され、`outerBg` はその外側背景色です。解決後の category が無名なら、`current` では空文字を返し、`list` では無名 category を表示しません。
 `statuslineSessions.current.format` / `statuslineSessions.other.format` では `{session}` が session 名に置換されます。`--show-index` または `showIndex: true` のときは `1 foo` のような index 付き文字列が入ります。
+
+```tmux
+bind-key -n MouseDown1Status if-shell -F '#{m/r:^[0-9]+$,#{mouse_status_range}}' \
+  'run-shell "vtm statusline-category switch #{mouse_status_range}"' \
+  'switch-client -t ='
+```
 
 current category 内だけで session を巡回する:
 

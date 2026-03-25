@@ -178,6 +178,9 @@ const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
       },
     },
     statuslineCategory: {
+      mode:
+        partial.statuslineCategory?.mode ??
+        DEFAULT_CONFIG.statuslineCategory.mode,
       format:
         partial.statuslineCategory?.format ??
         DEFAULT_CONFIG.statuslineCategory.format,
@@ -193,6 +196,10 @@ const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
       colors: {
         ...DEFAULT_CONFIG.statuslineCategory.colors,
         ...(partial.statuslineCategory?.colors ?? {}),
+      },
+      inactiveColors: {
+        ...DEFAULT_CONFIG.statuslineCategory.inactiveColors,
+        ...(partial.statuslineCategory?.inactiveColors ?? {}),
       },
     },
     statuslineSessions: {
@@ -240,6 +247,10 @@ const mergeConfig = (partial: PartialConfig): ResolvedConfig => {
       defaultCategory:
         partial.categories?.defaultCategory ??
         DEFAULT_CONFIG.categories.defaultCategory,
+      displayNames: {
+        ...DEFAULT_CONFIG.categories.displayNames,
+        ...(partial.categories?.displayNames ?? {}),
+      },
       order: {
         ...DEFAULT_CONFIG.categories.order,
         ...(partial.categories?.order ?? {}),

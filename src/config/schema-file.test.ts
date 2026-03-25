@@ -35,6 +35,7 @@ describe("config schema file", () => {
       "    termWaitMs: 300",
       "    killWaitMs: 300",
       "statuslineCategory:",
+      '  mode: "current"',
       '  format: "{category}"',
       '  prefix: ""',
       '  suffix: ""',
@@ -42,6 +43,10 @@ describe("config schema file", () => {
       "  colors:",
       '    fg: "#1C1C1C"',
       '    bg: "#FAB387"',
+      '    outerBg: "#352F63"',
+      "  inactiveColors:",
+      '    fg: "#C6D0F5"',
+      '    bg: "#352F63"',
       '    outerBg: "#352F63"',
       "statuslineSessions:",
       "  showIndex: false",
@@ -65,6 +70,8 @@ describe("config schema file", () => {
       '      outerBg: "#352F63"',
       "categories:",
       "  defaultCategory: work",
+      "  displayNames:",
+      '    work: "Work"',
       "  order:",
       "    work: 10",
       "    private: 20",
@@ -90,9 +97,13 @@ describe("config schema file", () => {
 
     expect(result.config.categories.defaultCategory).toBe("work")
     expect(result.config.ghqRoot).toBe("/tmp/ghq")
+    expect(result.config.statuslineCategory.mode).toBe("current")
     expect(result.config.categories.order).toEqual({
       work: 10,
       private: 20,
+    })
+    expect(result.config.categories.displayNames).toEqual({
+      work: "Work",
     })
     expect(result.config.statuslineCategory.format).toBe("{category}")
     expect(result.config.statuslineCategory.prefix).toBe("")

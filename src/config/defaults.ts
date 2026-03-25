@@ -30,6 +30,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     },
   },
   statuslineCategory: {
+    mode: "current",
     format: "{category}",
     prefix: "",
     suffix: "",
@@ -37,6 +38,11 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     colors: {
       fg: "#1C1C1C",
       bg: "#FAB387",
+      outerBg: "#352F63",
+    },
+    inactiveColors: {
+      fg: "#C6D0F5",
+      bg: "#352F63",
       outerBg: "#352F63",
     },
   },
@@ -67,6 +73,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
   },
   categories: {
     defaultCategory: "",
+    displayNames: {},
     order: {},
     rules: [],
     sessionNameRules: [],

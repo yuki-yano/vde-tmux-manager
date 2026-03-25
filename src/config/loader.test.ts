@@ -109,6 +109,7 @@ describe("loadConfig", () => {
 
     expect(result.loaded).toBe(true)
     expect(result.config.statuslineCategory).toEqual({
+      mode: DEFAULT_CONFIG.statuslineCategory.mode,
       format: "<{category}>",
       prefix: "[",
       suffix: "]",
@@ -118,6 +119,7 @@ describe("loadConfig", () => {
         bg: DEFAULT_CONFIG.statuslineCategory.colors.bg,
         outerBg: DEFAULT_CONFIG.statuslineCategory.colors.outerBg,
       },
+      inactiveColors: DEFAULT_CONFIG.statuslineCategory.inactiveColors,
     })
   })
 
@@ -125,6 +127,8 @@ describe("loadConfig", () => {
     const yaml = [
       "categories:",
       "  defaultCategory: public",
+      "  displayNames:",
+      '    work: "Work"',
       "  rules:",
       "    - category: work",
       "      ghqPatterns:",
@@ -141,6 +145,9 @@ describe("loadConfig", () => {
 
     expect(result.loaded).toBe(true)
     expect(result.config.categories.defaultCategory).toBe("public")
+    expect(result.config.categories.displayNames).toEqual({
+      work: "Work",
+    })
     expect(result.config.categories.rules).toEqual([
       {
         category: "work",
@@ -218,6 +225,7 @@ describe("loadConfig", () => {
     expect(result.loaded).toBe(true)
     expect(result.config.ghqRoot).toBeNull()
     expect(result.config.categories.defaultCategory).toBe("")
+    expect(result.config.categories.displayNames).toEqual({})
     expect(result.config.categories.rules).toEqual([])
     expect(result.config.categories.sessionNameRules).toEqual([])
   })

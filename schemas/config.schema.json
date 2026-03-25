@@ -97,9 +97,14 @@
       "type": "object",
       "description": "Rendering options for the tmux statusline category segment.",
       "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["current", "list"],
+          "description": "`current` renders only the active category. `list` renders all categories horizontally and highlights the active one."
+        },
         "format": {
           "type": "string",
-          "description": "Template for the category label. `{category}` is replaced with the current category name."
+          "description": "Template for the category label. `{category}` is replaced with the statusline display name."
         },
         "prefix": {
           "type": "string",
@@ -130,6 +135,26 @@
               "type": "string",
               "minLength": 1,
               "description": "Background color outside the body, used behind prefix and suffix."
+            }
+          }
+        },
+        "inactiveColors": {
+          "type": "object",
+          "properties": {
+            "fg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Foreground color for inactive category items in `list` mode."
+            },
+            "bg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Background color for inactive category items in `list` mode."
+            },
+            "outerBg": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Outside background color for inactive category items in `list` mode."
             }
           }
         }
@@ -234,6 +259,14 @@
         "defaultCategory": {
           "type": "string",
           "description": "Fallback category when no override, path rule, or session name rule matches. Empty string means an unnamed category."
+        },
+        "displayNames": {
+          "type": "object",
+          "description": "Optional statusline labels keyed by internal category name.",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "order": {
           "type": "object",

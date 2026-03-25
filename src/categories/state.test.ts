@@ -4,6 +4,7 @@ import {
   cycleSessionInCurrentCategory,
   getCategoryLastActiveSession,
   getCurrentCategory,
+  getOrderedCategoriesWithSessions,
   getSessionsInCategory,
   rememberCategoryLastActiveSession,
   rememberCurrentSessionForCurrentClient,
@@ -353,6 +354,35 @@ describe("getSessionsInCategory", () => {
       "repo-a",
       "repo-b",
     ])
+  })
+})
+
+describe("getOrderedCategoriesWithSessions", () => {
+  it("returns only categories that currently have sessions", () => {
+    const categories = getOrderedCategoriesWithSessions({
+      sessions: [
+        createSession({
+          id: "$1",
+          name: "repo-a",
+          projectPath: "/Users/test/ghq/github.com/company/repo-a",
+        }),
+      ],
+      config: {
+        ...config,
+        categories: {
+          ...config.categories,
+          order: {
+            private: 10,
+            public: 20,
+            work: 30,
+          },
+        },
+      },
+      homeDirectory: "/Users/test",
+      ghqRoot: "/Users/test/ghq",
+    })
+
+    expect(categories).toEqual(["work"])
   })
 })
 
