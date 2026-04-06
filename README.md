@@ -15,12 +15,12 @@
 - Clickable statusline session segments for session switching
 - YAML-based configuration
 - JSON Schema for YAML completion and validation
-- Two executable names: `vde-tmux-manager` and `vtm`
+- Single Rust executable: `vtm`
 - Configurable statusline fonts (prefix/suffix glyphs)
 
 ## Requirements
 
-- Node.js `>=22`
+- Rust toolchain with Cargo
 - tmux
 - fzf
 - `ps` / `kill` commands
@@ -29,16 +29,22 @@
 
 ## Installation
 
-Global install:
+Build from source:
 
 ```bash
-npm install -g vde-tmux-manager
+cargo build --release
 ```
 
-or
+Install locally:
 
 ```bash
-pnpm add -g vde-tmux-manager
+cargo install vde-tmux-manager
+```
+
+From the local repository:
+
+```bash
+cargo install --path crates/vtm-cli --bin vtm
 ```
 
 ## Commands
@@ -47,6 +53,10 @@ pnpm add -g vde-tmux-manager
 - `vtm session-manager --popup`
 - `vtm session-manager kill-window <target>`
 - `vtm session-manager kill-pane <target>`
+- `vtm daemon start`
+- `vtm daemon stop`
+- `vtm daemon status`
+- `vtm daemon reload`
 - `vtm project switch <path>`
 - `vtm category use <name>`
 - `vtm category next`
@@ -62,8 +72,6 @@ pnpm add -g vde-tmux-manager
 - `vtm statusline-sessions switch 2`
 - `vtm --help`
 - `vtm --version`
-
-`vde-tmux-manager` is a full alias of `vtm`.
 
 ## Session Manager Controls
 
@@ -206,6 +214,12 @@ Open session manager:
 bind-key C-f run-shell 'vtm session-manager'
 ```
 
+Start daemon explicitly when you want to warm caches before tmux starts invoking statusline commands:
+
+```tmux
+run-shell 'vtm daemon start'
+```
+
 Switch the current tmux client category:
 
 ```tmux
@@ -297,6 +311,7 @@ This replaces your existing right-click menu with a minimal kill-focused menu.
 ## Troubleshooting
 
 - If `session-manager` does not open, verify `tmux` and `fzf` are available in `PATH`.
+- If daemon state looks stale, run `vtm daemon reload`.
 - If clean kill behavior is incomplete, verify `ps` and `kill` are available.
 - If repo metadata is empty in preview, verify the pane path is inside a Git repository.
 - If your GHQ root is fixed, set `ghqRoot` in config to avoid calling `ghq root` on every command.
