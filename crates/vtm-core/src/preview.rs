@@ -27,7 +27,11 @@ struct PreviewPane {
     active: bool,
 }
 
-pub fn compute_session_capture_lines(preview_lines: Option<i64>, window_count: usize, fallback: i64) -> i64 {
+pub fn compute_session_capture_lines(
+    preview_lines: Option<i64>,
+    window_count: usize,
+    fallback: i64,
+) -> i64 {
     let safe_preview_lines = preview_lines.unwrap_or(0).max(0);
     let static_lines = 11i64;
     let dynamic_lines = 1 + window_count as i64 + 1;
@@ -39,7 +43,11 @@ pub fn compute_session_capture_lines(preview_lines: Option<i64>, window_count: u
     }
 }
 
-pub fn compute_per_pane_capture_lines(preview_lines: Option<i64>, pane_count: usize, fallback: i64) -> i64 {
+pub fn compute_per_pane_capture_lines(
+    preview_lines: Option<i64>,
+    pane_count: usize,
+    fallback: i64,
+) -> i64 {
     let safe_pane_count = pane_count.max(1) as i64;
     let safe_preview_lines = preview_lines.unwrap_or(0).max(0);
     let static_lines = 4 + 1 + safe_pane_count + 1;
@@ -65,7 +73,11 @@ fn read_preview_columns(env: &std::collections::BTreeMap<String, String>) -> Opt
         .filter(|value| *value > 0)
 }
 
-fn fit_preview_line(line: &str, env: &std::collections::BTreeMap<String, String>, padding: usize) -> String {
+fn fit_preview_line(
+    line: &str,
+    env: &std::collections::BTreeMap<String, String>,
+    padding: usize,
+) -> String {
     let Some(columns) = read_preview_columns(env) else {
         return line.to_string();
     };
@@ -82,7 +94,10 @@ fn resolve_box_width(env: &std::collections::BTreeMap<String, String>, fallback:
 
 fn render_header_box(title: &str, env: &std::collections::BTreeMap<String, String>) -> Vec<String> {
     let width = resolve_box_width(env, HEADER_BOX_FALLBACK_WIDTH);
-    let normalized = pad_visible(&format!(" {} ", truncate_visible(title, width.saturating_sub(2))), width);
+    let normalized = pad_visible(
+        &format!(" {} ", truncate_visible(title, width.saturating_sub(2))),
+        width,
+    );
     vec![
         format!("╔{}╗", "═".repeat(width)),
         format!("║{}║", normalized),
@@ -97,7 +112,11 @@ fn render_info_block(rows: &[(String, String)], title: &str) -> Vec<String> {
         return lines;
     }
     for (index, row) in rows.iter().enumerate() {
-        let branch = if index + 1 == rows.len() { "└─" } else { "├─" };
+        let branch = if index + 1 == rows.len() {
+            "└─"
+        } else {
+            "├─"
+        };
         lines.push(format!("{branch} {:<14} {}", row.0, row.1));
     }
     lines
@@ -111,7 +130,10 @@ fn render_pane_preview_block(
 ) -> Vec<String> {
     let inner_width = resolve_box_width(env, PREVIEW_BOX_FALLBACK_WIDTH);
     let normalized_title = pad_visible(
-        &format!(" {} ", truncate_visible(title, inner_width.saturating_sub(2))),
+        &format!(
+            " {} ",
+            truncate_visible(title, inner_width.saturating_sub(2))
+        ),
         inner_width,
     );
     let body = if pane_lines.is_empty() {
@@ -248,7 +270,10 @@ fn render_session_preview(
     let Some(session) = sessions.iter().find(|session| session.name == session_name) else {
         return Ok(format!("Session not found: {session_name}"));
     };
-    let active_window = windows.iter().find(|window| window.active).or_else(|| windows.first());
+    let active_window = windows
+        .iter()
+        .find(|window| window.active)
+        .or_else(|| windows.first());
     let active_pane_target = active_window
         .map(|window| format!("{session_name}:{}.0", window.index))
         .unwrap_or_default();
@@ -285,13 +310,23 @@ fn render_session_preview(
             ("Windows".to_string(), windows.len().to_string()),
             (
                 "Last Activity".to_string(),
-                format!("{} {}", activity_badge(session.last_activity), format_ago_from_epoch(session.last_activity)),
+                format!(
+                    "{} {}",
+                    activity_badge(session.last_activity),
+                    format_ago_from_epoch(session.last_activity)
+                ),
             ),
             (
                 "Repo".to_string(),
                 repo_info
                     .as_ref()
-                    .map(|repo| format!("{} ({})", repo.name, truncate_visible(&shorten_path(&repo.root_path, env), 44)))
+                    .map(|repo| {
+                        format!(
+                            "{} ({})",
+                            repo.name,
+                            truncate_visible(&shorten_path(&repo.root_path, env), 44)
+                        )
+                    })
                     .unwrap_or_else(|| "(not git repo)".to_string()),
             ),
             (
@@ -311,7 +346,11 @@ fn render_session_preview(
         lines.push("└─ (no windows)".to_string());
     } else {
         for (index, window) in windows.iter().enumerate() {
-            let branch = if index + 1 == windows.len() { "└─" } else { "├─" };
+            let branch = if index + 1 == windows.len() {
+                "└─"
+            } else {
+                "├─"
+            };
             let marker = if window.active { "▸" } else { "·" };
             let command_label = if window.command.is_empty() {
                 String::new()
@@ -329,7 +368,12 @@ fn render_session_preview(
     }
     lines.push(String::new());
     let preview_title = active_window
-        .map(|window| format!("Active Pane {session_name}:{}.0 (last {capture_lines} lines)", window.index))
+        .map(|window| {
+            format!(
+                "Active Pane {session_name}:{}.0 (last {capture_lines} lines)",
+                window.index
+            )
+        })
         .unwrap_or_else(|| format!("Active Pane (last {capture_lines} lines)"));
     lines.extend(render_pane_preview_block(
         &preview_title,
@@ -376,7 +420,10 @@ fn render_window_preview(
         panes.len(),
         config.session_manager.preview.pane_capture_lines,
     );
-    let active_pane = panes.iter().find(|pane| pane.active).or_else(|| panes.first());
+    let active_pane = panes
+        .iter()
+        .find(|pane| pane.active)
+        .or_else(|| panes.first());
     let active_pane_target = active_pane
         .map(|pane| format!("{session_name}:{window_index}.{}", pane.index))
         .unwrap_or_default();
@@ -406,7 +453,13 @@ fn render_window_preview(
                 "Repo".to_string(),
                 repo_info
                     .as_ref()
-                    .map(|repo| format!("{} ({})", repo.name, truncate_visible(&shorten_path(&repo.root_path, env), 44)))
+                    .map(|repo| {
+                        format!(
+                            "{} ({})",
+                            repo.name,
+                            truncate_visible(&shorten_path(&repo.root_path, env), 44)
+                        )
+                    })
                     .unwrap_or_else(|| "(not git repo)".to_string()),
             ),
             (
@@ -427,19 +480,32 @@ fn render_window_preview(
         return Ok(lines.join("\n"));
     }
     for (index, pane) in panes.iter().enumerate() {
-        let branch = if index + 1 == panes.len() { "└─" } else { "├─" };
+        let branch = if index + 1 == panes.len() {
+            "└─"
+        } else {
+            "├─"
+        };
         let marker = if pane.active { "▸" } else { "·" };
         lines.push(format!(
             "{branch} {marker} {}: {} {} ({}x{})",
             pane.index,
             get_pane_icon(&pane.command),
-            truncate_visible(if pane.command.is_empty() { "(unknown)" } else { &pane.command }, 20),
+            truncate_visible(
+                if pane.command.is_empty() {
+                    "(unknown)"
+                } else {
+                    &pane.command
+                },
+                20
+            ),
             pane.width,
             pane.height
         ));
     }
     lines.push(String::new());
-    lines.push(format!("┌─ Pane Preview (last {per_pane_lines} lines each)"));
+    lines.push(format!(
+        "┌─ Pane Preview (last {per_pane_lines} lines each)"
+    ));
     let pane_tails = panes
         .iter()
         .map(|pane| {
@@ -455,7 +521,14 @@ fn render_window_preview(
                 "{} Pane {} ({})",
                 if pane.active { "▸" } else { "·" },
                 pane.index,
-                truncate_visible(if pane.command.is_empty() { "unknown" } else { &pane.command }, 24)
+                truncate_visible(
+                    if pane.command.is_empty() {
+                        "unknown"
+                    } else {
+                        &pane.command
+                    },
+                    24
+                )
             ),
             &pane_tails[index]
                 .iter()

@@ -1,9 +1,7 @@
 use anyhow::{Result, anyhow};
 
 use crate::config::ResolvedConfig;
-use crate::matcher::{
-    collect_defined_categories, resolve_category_for_session, sort_categories,
-};
+use crate::matcher::{collect_defined_categories, resolve_category_for_session, sort_categories};
 use crate::parse::SessionDetails;
 use crate::tmux::TmuxClient;
 
@@ -130,7 +128,10 @@ fn encode_scope_key(value: &str) -> String {
 }
 
 fn category_last_session_option_name(category_name: &str) -> String {
-    format!("{CATEGORY_LAST_SESSION_OPTION_PREFIX}{}", encode_scope_key(category_name))
+    format!(
+        "{CATEGORY_LAST_SESSION_OPTION_PREFIX}{}",
+        encode_scope_key(category_name)
+    )
 }
 
 fn require_current_client_name(tmux: &TmuxClient, error_message: &str) -> Result<String> {
@@ -187,8 +188,10 @@ fn read_category_last_active_session_for_client(
     client_name: &str,
     category_name: &str,
 ) -> Result<Option<String>> {
-    let session_name =
-        tmux.show_client_option(client_name, &category_last_session_option_name(category_name))?;
+    let session_name = tmux.show_client_option(
+        client_name,
+        &category_last_session_option_name(category_name),
+    )?;
     if session_name.trim().is_empty() {
         Ok(None)
     } else {
@@ -196,7 +199,10 @@ fn read_category_last_active_session_for_client(
     }
 }
 
-fn find_session_by_name<'a>(sessions: &'a [SessionDetails], session_name: &str) -> Option<&'a SessionDetails> {
+fn find_session_by_name<'a>(
+    sessions: &'a [SessionDetails],
+    session_name: &str,
+) -> Option<&'a SessionDetails> {
     sessions.iter().find(|session| session.name == session_name)
 }
 
@@ -296,13 +302,24 @@ pub fn switch_client_and_remember_session(
     };
     let resolved_category = match category_name {
         Some(value) if !value.is_empty() => value.to_string(),
-        _ => resolve_session_category_by_name(sessions, config, session_name, home_directory, ghq_root)?,
+        _ => resolve_session_category_by_name(
+            sessions,
+            config,
+            session_name,
+            home_directory,
+            ghq_root,
+        )?,
     };
     tmux.switch_client(session_name)?;
     if !skip_current_category_update {
         write_current_category_for_client(tmux, &resolved_client, &resolved_category)?;
     }
-    write_category_last_session_for_client(tmux, &resolved_client, &resolved_category, session_name)?;
+    write_category_last_session_for_client(
+        tmux,
+        &resolved_client,
+        &resolved_category,
+        session_name,
+    )?;
     Ok(session_name.to_string())
 }
 
@@ -317,12 +334,24 @@ pub fn cycle_session_in_current_category(
     let (client_name, current_session) =
         read_client_context(tmux, "session cycle requires tmux client context")?;
     let current_category = read_current_category_for_client(tmux, config, &client_name)?;
-    let sessions = get_sessions_in_category(sessions, &current_category, config, home_directory, ghq_root);
+    let sessions = get_sessions_in_category(
+        sessions,
+        &current_category,
+        config,
+        home_directory,
+        ghq_root,
+    );
     if sessions.is_empty() {
         return Ok(None);
     }
-    let names = sessions.iter().map(|session| session.name.clone()).collect::<Vec<_>>();
-    let current_index = names.iter().position(|name| name == &current_session).unwrap_or(0);
+    let names = sessions
+        .iter()
+        .map(|session| session.name.clone())
+        .collect::<Vec<_>>();
+    let current_index = names
+        .iter()
+        .position(|name| name == &current_session)
+        .unwrap_or(0);
     let next_index = if direction == "next" {
         (current_index + 1) % names.len()
     } else {
@@ -362,8 +391,9 @@ pub fn use_category_and_switch_to_last_session(
         read_client_context(tmux, "category use requires tmux client context")?;
     let normalized_category = ensure_known_category(config, category_name)?;
 
-    if let Some(current_session_details) =
-        (!current_session.is_empty()).then(|| find_session_by_name(sessions, &current_session)).flatten()
+    if let Some(current_session_details) = (!current_session.is_empty())
+        .then(|| find_session_by_name(sessions, &current_session))
+        .flatten()
     {
         if resolve_effective_session_category(
             current_session_details,
@@ -385,22 +415,28 @@ pub fn use_category_and_switch_to_last_session(
         }
     }
 
-    let category_sessions =
-        get_sessions_in_category(sessions, &normalized_category, config, home_directory, ghq_root);
+    let category_sessions = get_sessions_in_category(
+        sessions,
+        &normalized_category,
+        config,
+        home_directory,
+        ghq_root,
+    );
     if category_sessions.is_empty() {
         write_current_category_for_client(tmux, &client_name, &normalized_category)?;
         return Ok(None);
     }
-    let last_active = read_category_last_active_session_for_client(
-        tmux,
-        &client_name,
-        &normalized_category,
-    )?;
+    let last_active =
+        read_category_last_active_session_for_client(tmux, &client_name, &normalized_category)?;
     let target = category_sessions
         .iter()
         .find(|session| Some(session.name.as_str()) == last_active.as_deref())
         .map(|session| session.name.clone())
-        .or_else(|| category_sessions.first().map(|session| session.name.clone()));
+        .or_else(|| {
+            category_sessions
+                .first()
+                .map(|session| session.name.clone())
+        });
 
     let Some(target) = target else {
         return Ok(None);

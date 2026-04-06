@@ -6,8 +6,7 @@ use anyhow::Result;
 use crate::command::{CommandOptions, CommandResult, run_command};
 use crate::parse::{
     PaneInfo, SessionDetails, SessionIdentity, SessionMeta, WindowInfo, parse_pane_list,
-    parse_session_details_list, parse_session_identity_list, parse_session_list,
-    parse_window_list,
+    parse_session_details_list, parse_session_identity_list, parse_session_list, parse_window_list,
 };
 
 #[derive(Debug, Clone)]
@@ -88,7 +87,10 @@ impl TmuxClient {
     }
 
     pub fn list_session_identities(&self) -> Result<Vec<SessionIdentity>> {
-        let result = self.run(&["list-sessions", "-F", "#{session_id}\t#{session_name}"], true)?;
+        let result = self.run(
+            &["list-sessions", "-F", "#{session_id}\t#{session_name}"],
+            true,
+        )?;
         Ok(parse_session_identity_list(&result.stdout))
     }
 
@@ -152,7 +154,10 @@ impl TmuxClient {
         if tail_lines <= 0 {
             return Ok(Vec::new());
         }
-        let result = self.run(&["capture-pane", "-t", target, "-J", "-N", "-e", "-p"], true)?;
+        let result = self.run(
+            &["capture-pane", "-t", target, "-J", "-N", "-e", "-p"],
+            true,
+        )?;
         let mut lines = result
             .stdout
             .replace('\r', "")
@@ -172,7 +177,16 @@ impl TmuxClient {
 
     pub fn pane_current_path(&self, target: &str) -> Result<String> {
         Ok(self
-            .run(&["display-message", "-p", "-t", target, "#{pane_current_path}"], true)?
+            .run(
+                &[
+                    "display-message",
+                    "-p",
+                    "-t",
+                    target,
+                    "#{pane_current_path}",
+                ],
+                true,
+            )?
             .stdout
             .trim()
             .to_string())
@@ -180,19 +194,28 @@ impl TmuxClient {
 
     pub fn show_session_option(&self, target: &str, name: &str) -> Result<String> {
         Ok(self
-            .run(&["show-option", "-qv", "-t", target, &format!("@{name}")], true)?
+            .run(
+                &["show-option", "-qv", "-t", target, &format!("@{name}")],
+                true,
+            )?
             .stdout
             .trim()
             .to_string())
     }
 
     pub fn set_session_option(&self, target: &str, name: &str, value: &str) -> Result<()> {
-        self.run(&["set-option", "-q", "-t", target, &format!("@{name}"), value], true)?;
+        self.run(
+            &["set-option", "-q", "-t", target, &format!("@{name}"), value],
+            true,
+        )?;
         Ok(())
     }
 
     pub fn unset_session_option(&self, target: &str, name: &str) -> Result<()> {
-        self.run(&["set-option", "-qu", "-t", target, &format!("@{name}")], true)?;
+        self.run(
+            &["set-option", "-qu", "-t", target, &format!("@{name}")],
+            true,
+        )?;
         Ok(())
     }
 
@@ -215,7 +238,14 @@ impl TmuxClient {
 
     pub fn show_client_option(&self, target: &str, name: &str) -> Result<String> {
         Ok(self
-            .run(&["show-option", "-sqv", &Self::client_option_name(target, name)], true)?
+            .run(
+                &[
+                    "show-option",
+                    "-sqv",
+                    &Self::client_option_name(target, name),
+                ],
+                true,
+            )?
             .stdout
             .trim()
             .to_string())
@@ -223,7 +253,12 @@ impl TmuxClient {
 
     pub fn set_client_option(&self, target: &str, name: &str, value: &str) -> Result<()> {
         self.run(
-            &["set-option", "-sq", &Self::client_option_name(target, name), value],
+            &[
+                "set-option",
+                "-sq",
+                &Self::client_option_name(target, name),
+                value,
+            ],
             true,
         )?;
         Ok(())

@@ -47,6 +47,11 @@ cargo install vde-tmux-manager
 cargo install --path crates/vtm-cli --bin vtm
 ```
 
+## プロジェクト構成
+
+- `crates/vtm-core`: config 読込、tmux wrapper、parse、format、preview、session/category state 解決などの再利用ロジック
+- `crates/vtm-cli`: `vtm` 実行バイナリ、daemon lifecycle、cache 管理、CLI command orchestration
+
 ## コマンド
 
 - `vtm session-manager`

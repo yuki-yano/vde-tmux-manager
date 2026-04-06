@@ -1,15 +1,15 @@
 [package]
-name = "vde-tmux-manager"
+name = "vtm-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "tmux utility CLI for session management and statusline helpers"
+description = "Core logic for vde-tmux-manager"
 
-[[bin]]
-name = "vtm"
-path = "src/main.rs"
+[lib]
+name = "vtm_core"
+path = "src/lib.rs"
 
 [dependencies]
 anyhow.workspace = true
@@ -21,4 +21,3 @@ serde_yaml.workspace = true
 thiserror.workspace = true
 unicode-segmentation.workspace = true
 unicode-width.workspace = true
-vtm-core = { version = "0.0.25", path = "../vtm-core" }

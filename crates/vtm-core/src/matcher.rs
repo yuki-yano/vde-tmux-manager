@@ -54,7 +54,12 @@ fn match_segment(value: &str, pattern: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn match_segments(values: &[String], patterns: &[String], value_index: usize, pattern_index: usize) -> bool {
+fn match_segments(
+    values: &[String],
+    patterns: &[String],
+    value_index: usize,
+    pattern_index: usize,
+) -> bool {
     let Some(pattern) = patterns.get(pattern_index) else {
         return value_index == values.len();
     };
@@ -192,7 +197,10 @@ mod tests {
 
     #[test]
     fn glob_double_star() {
-        assert!(match_glob("github.com/yuki-yano/vtm", "github.com/yuki-yano/**"));
+        assert!(match_glob(
+            "github.com/yuki-yano/vtm",
+            "github.com/yuki-yano/**"
+        ));
     }
 
     #[test]
@@ -209,7 +217,12 @@ mod tests {
             session_name_rules: vec![],
         };
         assert_eq!(
-            resolve_project_path_category(&config, "/ghq/github.com/yuki-yano/vtm", Some("/ghq"), "/home/yuki"),
+            resolve_project_path_category(
+                &config,
+                "/ghq/github.com/yuki-yano/vtm",
+                Some("/ghq"),
+                "/home/yuki"
+            ),
             "oss"
         );
     }

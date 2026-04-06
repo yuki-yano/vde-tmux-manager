@@ -344,8 +344,12 @@ fn merge_colors(
     partial: Option<&PartialStatuslineSegmentColorsConfig>,
 ) -> StatuslineSegmentColorsConfig {
     StatuslineSegmentColorsConfig {
-        fg: partial.and_then(|value| value.fg.clone()).unwrap_or_else(|| base.fg.clone()),
-        bg: partial.and_then(|value| value.bg.clone()).unwrap_or_else(|| base.bg.clone()),
+        fg: partial
+            .and_then(|value| value.fg.clone())
+            .unwrap_or_else(|| base.fg.clone()),
+        bg: partial
+            .and_then(|value| value.bg.clone())
+            .unwrap_or_else(|| base.bg.clone()),
         outer_bg: partial
             .and_then(|value| value.outer_bg.clone())
             .unwrap_or_else(|| base.outer_bg.clone()),
@@ -357,11 +361,20 @@ fn merge_segment(
     partial: Option<&PartialStatuslineSegmentConfig>,
 ) -> StatuslineSegmentConfig {
     StatuslineSegmentConfig {
-        format: partial.and_then(|value| value.format.clone()).unwrap_or_else(|| base.format.clone()),
-        prefix: partial.and_then(|value| value.prefix.clone()).unwrap_or_else(|| base.prefix.clone()),
-        suffix: partial.and_then(|value| value.suffix.clone()).unwrap_or_else(|| base.suffix.clone()),
+        format: partial
+            .and_then(|value| value.format.clone())
+            .unwrap_or_else(|| base.format.clone()),
+        prefix: partial
+            .and_then(|value| value.prefix.clone())
+            .unwrap_or_else(|| base.prefix.clone()),
+        suffix: partial
+            .and_then(|value| value.suffix.clone())
+            .unwrap_or_else(|| base.suffix.clone()),
         bold: partial.and_then(|value| value.bold).unwrap_or(base.bold),
-        colors: merge_colors(&base.colors, partial.and_then(|value| value.colors.as_ref())),
+        colors: merge_colors(
+            &base.colors,
+            partial.and_then(|value| value.colors.as_ref()),
+        ),
     }
 }
 
@@ -557,7 +570,12 @@ pub fn merge_config(partial: PartialConfig) -> ResolvedConfig {
 }
 
 fn config_issue(path: &str, message: &str, file_path: &Path) -> anyhow::Error {
-    anyhow!("Invalid config ({}): {}: {}", file_path.display(), path, message)
+    anyhow!(
+        "Invalid config ({}): {}: {}",
+        file_path.display(),
+        path,
+        message
+    )
 }
 
 fn validate_config(config: &ResolvedConfig, path: &Path) -> Result<()> {
@@ -565,14 +583,24 @@ fn validate_config(config: &ResolvedConfig, path: &Path) -> Result<()> {
         return Err(config_issue("sessionManager.popup.width", "required", path));
     }
     if config.session_manager.popup.height.trim().is_empty() {
-        return Err(config_issue("sessionManager.popup.height", "required", path));
+        return Err(config_issue(
+            "sessionManager.popup.height",
+            "required",
+            path,
+        ));
     }
     if config.session_manager.fzf.prompt.trim().is_empty() {
         return Err(config_issue("sessionManager.fzf.prompt", "required", path));
     }
     for (name, value) in [
-        ("statuslineCategory.colors.fg", &config.statusline_category.colors.fg),
-        ("statuslineCategory.colors.bg", &config.statusline_category.colors.bg),
+        (
+            "statuslineCategory.colors.fg",
+            &config.statusline_category.colors.fg,
+        ),
+        (
+            "statuslineCategory.colors.bg",
+            &config.statusline_category.colors.bg,
+        ),
         (
             "statuslineCategory.colors.outerBg",
             &config.statusline_category.colors.outer_bg,
@@ -585,12 +613,20 @@ fn validate_config(config: &ResolvedConfig, path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn expand_pattern(value: &str, env: &BTreeMap<String, String>, path: &str, file_path: &Path) -> Result<String> {
+fn expand_pattern(
+    value: &str,
+    env: &BTreeMap<String, String>,
+    path: &str,
+    file_path: &Path,
+) -> Result<String> {
     let pattern = regex::Regex::new(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")?;
     let mut missing = None::<String>;
     let expanded = pattern
         .replace_all(value, |captures: &regex::Captures<'_>| {
-            let key = captures.get(1).map(|value| value.as_str()).unwrap_or_default();
+            let key = captures
+                .get(1)
+                .map(|value| value.as_str())
+                .unwrap_or_default();
             match env.get(key) {
                 Some(value) => value.clone(),
                 None => {
@@ -601,7 +637,11 @@ fn expand_pattern(value: &str, env: &BTreeMap<String, String>, path: &str, file_
         })
         .to_string();
     if let Some(variable) = missing {
-        return Err(config_issue(path, &format!("environment variable {} is not defined", variable), file_path));
+        return Err(config_issue(
+            path,
+            &format!("environment variable {} is not defined", variable),
+            file_path,
+        ));
     }
     Ok(expanded)
 }
@@ -641,14 +681,22 @@ fn expand_config_patterns(
 }
 
 pub fn resolve_config_path(env: &BTreeMap<String, String>) -> Result<PathBuf> {
-    if let Some(root) = env.get("XDG_CONFIG_HOME").filter(|value| !value.trim().is_empty()) {
-        return Ok(PathBuf::from(root).join(CONFIG_DIRECTORY).join(CONFIG_BASENAME));
+    if let Some(root) = env
+        .get("XDG_CONFIG_HOME")
+        .filter(|value| !value.trim().is_empty())
+    {
+        return Ok(PathBuf::from(root)
+            .join(CONFIG_DIRECTORY)
+            .join(CONFIG_BASENAME));
     }
     let home = env
         .get("HOME")
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| anyhow!("HOME is required to resolve config path"))?;
-    Ok(PathBuf::from(home).join(".config").join(CONFIG_DIRECTORY).join(CONFIG_BASENAME))
+    Ok(PathBuf::from(home)
+        .join(".config")
+        .join(CONFIG_DIRECTORY)
+        .join(CONFIG_BASENAME))
 }
 
 pub fn load_config(env: &BTreeMap<String, String>) -> Result<LoadConfigResult> {

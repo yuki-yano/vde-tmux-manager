@@ -6,7 +6,10 @@ use crate::command::{CommandOptions, run_command};
 use crate::config::ResolvedConfig;
 use crate::matcher::expand_home_path;
 
-pub fn resolve_ghq_root(config: Option<&ResolvedConfig>, env: &BTreeMap<String, String>) -> Result<Option<String>> {
+pub fn resolve_ghq_root(
+    config: Option<&ResolvedConfig>,
+    env: &BTreeMap<String, String>,
+) -> Result<Option<String>> {
     if let Some(root) = config
         .and_then(|config| config.ghq_root.clone())
         .filter(|value| !value.trim().is_empty())

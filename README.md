@@ -47,6 +47,11 @@ From the local repository:
 cargo install --path crates/vtm-cli --bin vtm
 ```
 
+## Project Layout
+
+- `crates/vtm-core`: reusable core logic such as config loading, tmux wrappers, parsing, formatting, preview rendering, and session/category state resolution
+- `crates/vtm-cli`: the `vtm` executable, daemon lifecycle, cache management, and CLI command orchestration
+
 ## Commands
 
 - `vtm session-manager`

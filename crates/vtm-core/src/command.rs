@@ -22,9 +22,7 @@ pub struct CommandResult {
     pub exit_code: i32,
 }
 
-fn build_env(
-    overlay: &BTreeMap<String, String>,
-) -> BTreeMap<OsString, OsString> {
+fn build_env(overlay: &BTreeMap<String, String>) -> BTreeMap<OsString, OsString> {
     let mut merged = std::env::vars_os()
         .map(|(k, v)| (k, v))
         .collect::<BTreeMap<OsString, OsString>>();
@@ -103,7 +101,17 @@ pub fn command_exists(command: &str, env: &BTreeMap<String, String>) -> Result<b
         env: env.clone(),
         ..CommandOptions::default()
     };
-    let result = run_command("sh", ["-lc", &format!("command -v '{}' >/dev/null 2>&1", command.replace('\'', "'\\''"))], &options)?;
+    let result = run_command(
+        "sh",
+        [
+            "-lc",
+            &format!(
+                "command -v '{}' >/dev/null 2>&1",
+                command.replace('\'', "'\\''")
+            ),
+        ],
+        &options,
+    )?;
     Ok(result.exit_code == 0)
 }
 
