@@ -1,4 +1,0 @@
-interface:
-  display_name: "vde-tmux-manager Publish"
-  short_description: "vde-tmux-manager の npm 公開を検証付きで進める"
-  default_prompt: "Use $vde-tmux-manager-publish to release vde-tmux-manager: bump version, push v* tag, and verify npm publish."
