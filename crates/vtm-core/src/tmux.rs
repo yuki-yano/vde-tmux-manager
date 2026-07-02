@@ -5,8 +5,9 @@ use anyhow::Result;
 
 use crate::command::{CommandOptions, CommandResult, run_command};
 use crate::parse::{
-    PaneInfo, SessionDetails, SessionIdentity, SessionMeta, WindowInfo, parse_pane_list,
-    parse_session_details_list, parse_session_identity_list, parse_session_list, parse_window_list,
+    ClientInfo, PaneInfo, SessionDetails, SessionIdentity, SessionMeta, WindowInfo,
+    parse_client_list, parse_pane_list, parse_session_details_list, parse_session_identity_list,
+    parse_session_list, parse_window_list,
 };
 
 #[derive(Debug, Clone)]
@@ -100,6 +101,11 @@ impl TmuxClient {
             true,
         )?;
         Ok(parse_session_identity_list(&result.stdout))
+    }
+
+    pub fn list_clients(&self) -> Result<Vec<ClientInfo>> {
+        let result = self.run(&["list-clients", "-F", "#{client_name}"], true)?;
+        Ok(parse_client_list(&result.stdout))
     }
 
     pub fn list_windows(&self, session_name: &str) -> Result<Vec<WindowInfo>> {

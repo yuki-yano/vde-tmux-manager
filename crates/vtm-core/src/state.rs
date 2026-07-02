@@ -114,7 +114,7 @@ pub fn resolve_adjacent_category(
     Ok(ordered_categories[next_index].clone())
 }
 
-fn encode_scope_key(value: &str) -> String {
+pub fn encode_scope_key(value: &str) -> String {
     let encoded = value
         .as_bytes()
         .iter()
@@ -132,6 +132,14 @@ fn category_last_session_option_name(category_name: &str) -> String {
         "{CATEGORY_LAST_SESSION_OPTION_PREFIX}{}",
         encode_scope_key(category_name)
     )
+}
+
+pub fn category_last_session_option_key(category_name: &str) -> String {
+    category_last_session_option_name(category_name)
+}
+
+pub fn current_category_option_key() -> &'static str {
+    CURRENT_CATEGORY_OPTION
 }
 
 fn require_current_client_name(tmux: &TmuxClient, error_message: &str) -> Result<String> {
@@ -206,6 +214,21 @@ fn find_session_by_name<'a>(
     sessions.iter().find(|session| session.name == session_name)
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct SessionResolutionContext<'a> {
+    pub home_directory: &'a str,
+    pub ghq_root: Option<&'a str>,
+    pub sessions: &'a [SessionDetails],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SwitchClientSessionRequest<'a> {
+    pub session_name: &'a str,
+    pub category_name: Option<&'a str>,
+    pub client_name: Option<&'a str>,
+    pub skip_current_category_update: bool,
+}
+
 pub fn get_current_category(tmux: &TmuxClient, config: &ResolvedConfig) -> Result<String> {
     match require_current_client_name(tmux, "current category requires tmux client context") {
         Ok(client_name) => read_current_category_for_client(tmux, config, &client_name),
@@ -218,16 +241,18 @@ pub fn remember_session_for_client(
     config: &ResolvedConfig,
     client_name: &str,
     session_name: &str,
-    home_directory: &str,
-    ghq_root: Option<&str>,
-    sessions: &[SessionDetails],
+    context: SessionResolutionContext<'_>,
     write_current_category: bool,
 ) -> Result<Option<String>> {
-    let Some(session) = find_session_by_name(sessions, session_name) else {
+    let Some(session) = find_session_by_name(context.sessions, session_name) else {
         return Ok(None);
     };
-    let category_name =
-        resolve_effective_session_category(session, config, home_directory, ghq_root);
+    let category_name = resolve_effective_session_category(
+        session,
+        config,
+        context.home_directory,
+        context.ghq_root,
+    );
     if write_current_category {
         write_current_category_for_client(tmux, client_name, &category_name)?;
     }
@@ -260,9 +285,11 @@ pub fn remember_current_session_for_current_client(
         config,
         &client_name,
         &session_name,
-        home_directory,
-        ghq_root,
-        sessions,
+        SessionResolutionContext {
+            home_directory,
+            ghq_root,
+            sessions,
+        },
         write_current_category,
     )?;
     Ok(remembered.map(|_| session_name))
@@ -288,39 +315,34 @@ pub fn resolve_session_category_by_name(
 pub fn switch_client_and_remember_session(
     tmux: &TmuxClient,
     config: &ResolvedConfig,
-    session_name: &str,
-    category_name: Option<&str>,
-    home_directory: &str,
-    ghq_root: Option<&str>,
-    client_name: Option<&str>,
-    sessions: &[SessionDetails],
-    skip_current_category_update: bool,
+    request: SwitchClientSessionRequest<'_>,
+    context: SessionResolutionContext<'_>,
 ) -> Result<String> {
-    let resolved_client = match client_name {
+    let resolved_client = match request.client_name {
         Some(value) if !value.is_empty() => value.to_string(),
         _ => require_current_client_name(tmux, "switch session requires tmux client context")?,
     };
-    let resolved_category = match category_name {
+    let resolved_category = match request.category_name {
         Some(value) if !value.is_empty() => value.to_string(),
         _ => resolve_session_category_by_name(
-            sessions,
+            context.sessions,
             config,
-            session_name,
-            home_directory,
-            ghq_root,
+            request.session_name,
+            context.home_directory,
+            context.ghq_root,
         )?,
     };
-    tmux.switch_client(session_name)?;
-    if !skip_current_category_update {
+    tmux.switch_client(request.session_name)?;
+    if !request.skip_current_category_update {
         write_current_category_for_client(tmux, &resolved_client, &resolved_category)?;
     }
     write_category_last_session_for_client(
         tmux,
         &resolved_client,
         &resolved_category,
-        session_name,
+        request.session_name,
     )?;
-    Ok(session_name.to_string())
+    Ok(request.session_name.to_string())
 }
 
 pub fn cycle_session_in_current_category(
@@ -368,13 +390,17 @@ pub fn cycle_session_in_current_category(
     switch_client_and_remember_session(
         tmux,
         config,
-        &target,
-        Some(&current_category),
-        home_directory,
-        ghq_root,
-        Some(&client_name),
-        &sessions,
-        true,
+        SwitchClientSessionRequest {
+            session_name: &target,
+            category_name: Some(&current_category),
+            client_name: Some(&client_name),
+            skip_current_category_update: true,
+        },
+        SessionResolutionContext {
+            home_directory,
+            ghq_root,
+            sessions: &sessions,
+        },
     )?;
     Ok(Some(target))
 }
@@ -394,25 +420,25 @@ pub fn use_category_and_switch_to_last_session(
     if let Some(current_session_details) = (!current_session.is_empty())
         .then(|| find_session_by_name(sessions, &current_session))
         .flatten()
-    {
-        if resolve_effective_session_category(
+        && resolve_effective_session_category(
             current_session_details,
             config,
             home_directory,
             ghq_root,
         ) != normalized_category
-        {
-            remember_session_for_client(
-                tmux,
-                config,
-                &client_name,
-                &current_session,
+    {
+        remember_session_for_client(
+            tmux,
+            config,
+            &client_name,
+            &current_session,
+            SessionResolutionContext {
                 home_directory,
                 ghq_root,
                 sessions,
-                false,
-            )?;
-        }
+            },
+            false,
+        )?;
     }
 
     let category_sessions = get_sessions_in_category(
@@ -449,13 +475,17 @@ pub fn use_category_and_switch_to_last_session(
     switch_client_and_remember_session(
         tmux,
         config,
-        &target,
-        Some(&normalized_category),
-        home_directory,
-        ghq_root,
-        Some(&client_name),
-        sessions,
-        false,
+        SwitchClientSessionRequest {
+            session_name: &target,
+            category_name: Some(&normalized_category),
+            client_name: Some(&client_name),
+            skip_current_category_update: false,
+        },
+        SessionResolutionContext {
+            home_directory,
+            ghq_root,
+            sessions,
+        },
     )?;
     Ok(Some(target))
 }

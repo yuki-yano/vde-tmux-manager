@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/yuki-yano/vde-tmux-manager/refs/heads/main/schemas/state-export.schema.json",
+  "title": "vde-tmux-manager state export",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "categories", "sessions", "clients"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "State export schema version. Breaking changes increment this value."
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "displayName", "order"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "category",
+          "categorySource",
+          "projectPath",
+          "attached",
+          "activity"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "categorySource": {
+            "type": "string",
+            "enum": ["override", "pathRule", "sessionNameRule", "default"]
+          },
+          "projectPath": {
+            "type": "string"
+          },
+          "attached": {
+            "type": "boolean"
+          },
+          "activity": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "clients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["client", "currentCategory", "lastSessions"],
+        "properties": {
+          "client": {
+            "type": "string"
+          },
+          "currentCategory": {
+            "type": "string"
+          },
+          "lastSessions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

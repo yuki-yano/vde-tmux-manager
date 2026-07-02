@@ -8,12 +8,15 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
+use vtm_core::export::StateExport;
 
 use crate::app_context::AppContext;
 use crate::cli::dispatch::run_cli_with_context;
 use crate::cli::{CliResponse, EXIT_ERROR};
 use crate::daemon::cache::{DaemonSharedState, PROTOCOL_VERSION};
 use crate::daemon::protocol::{DaemonRequest, DaemonResponse, DaemonStatus};
+
+const SUBSCRIBE_POLL_MS: u64 = 500;
 
 pub fn runtime_directory(env: &BTreeMap<String, String>) -> PathBuf {
     if let Some(runtime_dir) = env
@@ -54,6 +57,23 @@ pub fn send_daemon_request(path: &Path, request: &DaemonRequest) -> Result<Daemo
     let mut stream = connect_socket(path)?;
     write_frame(&mut stream, request)?;
     read_frame(&mut stream)
+}
+
+pub fn stream_daemon_state_exports(
+    path: &Path,
+    env: BTreeMap<String, String>,
+    cwd: Option<String>,
+    mut on_export: impl FnMut(StateExport) -> Result<()>,
+) -> Result<()> {
+    let mut stream = connect_socket(path)?;
+    write_frame(&mut stream, &DaemonRequest::Subscribe { env, cwd })?;
+    loop {
+        match read_frame::<DaemonResponse>(&mut stream)? {
+            DaemonResponse::StateExport(export) => on_export(export)?,
+            DaemonResponse::Error(message) => return Err(anyhow!(message)),
+            other => return Err(anyhow!("unexpected daemon response: {:?}", other)),
+        }
+    }
 }
 
 pub fn ensure_daemon_started(env: &BTreeMap<String, String>) -> Result<PathBuf> {
@@ -115,6 +135,59 @@ fn daemon_status_from_state(shared: &Arc<Mutex<DaemonSharedState>>, socket: &Pat
     }
 }
 
+fn build_state_export_for_subscription(
+    shared: &Arc<Mutex<DaemonSharedState>>,
+    env: &BTreeMap<String, String>,
+    cwd: &Option<PathBuf>,
+) -> Result<StateExport> {
+    let ctx = AppContext::new(env.clone(), cwd.clone(), Some(shared.clone()));
+    let response = run_cli_with_context(
+        &[
+            String::from("export"),
+            String::from("state"),
+            String::from("--json"),
+        ],
+        &ctx,
+        false,
+    )?;
+    if response.exit_code != 0 {
+        return Err(anyhow!(response.stderr));
+    }
+    Ok(serde_json::from_str(&response.stdout)?)
+}
+
+fn serve_subscription(
+    mut stream: UnixStream,
+    shared: Arc<Mutex<DaemonSharedState>>,
+    env: BTreeMap<String, String>,
+    cwd: Option<PathBuf>,
+) {
+    let mut last_payload = None::<String>;
+    loop {
+        let export = match build_state_export_for_subscription(&shared, &env, &cwd) {
+            Ok(export) => export,
+            Err(error) => {
+                let _ = write_frame(&mut stream, &DaemonResponse::Error(error.to_string()));
+                return;
+            }
+        };
+        let payload = match serde_json::to_string(&export) {
+            Ok(payload) => payload,
+            Err(error) => {
+                let _ = write_frame(&mut stream, &DaemonResponse::Error(error.to_string()));
+                return;
+            }
+        };
+        if last_payload.as_deref() != Some(payload.as_str()) {
+            if write_frame(&mut stream, &DaemonResponse::StateExport(export)).is_err() {
+                return;
+            }
+            last_payload = Some(payload);
+        }
+        std::thread::sleep(Duration::from_millis(SUBSCRIBE_POLL_MS));
+    }
+}
+
 pub fn serve_daemon(socket: &Path) -> Result<()> {
     if let Some(parent) = socket.parent() {
         std::fs::create_dir_all(parent)?;
@@ -161,6 +234,12 @@ pub fn serve_daemon(socket: &Path) -> Result<()> {
                 let _ = std::fs::remove_file(socket);
                 return Ok(());
             }
+            DaemonRequest::Subscribe { env, cwd } => {
+                let shared = shared.clone();
+                let cwd = cwd.map(PathBuf::from);
+                std::thread::spawn(move || serve_subscription(stream, shared, env, cwd));
+                continue;
+            }
             DaemonRequest::Cli { args, env, cwd } => {
                 let cwd = cwd.map(PathBuf::from);
                 let ctx = AppContext::new(env, cwd, Some(shared.clone()));
@@ -202,6 +281,24 @@ mod tests {
         match decoded {
             DaemonRequest::Cli { args, env, cwd } => {
                 assert_eq!(args, vec![String::from("statusline-category")]);
+                assert_eq!(env.get("HOME"), Some(&String::from("/tmp/home")));
+                assert_eq!(cwd.as_deref(), Some("/tmp/work"));
+            }
+            other => panic!("unexpected payload: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn subscribe_frame_roundtrip() {
+        let (mut left, mut right) = UnixStream::pair().expect("stream pair");
+        let request = DaemonRequest::Subscribe {
+            env: BTreeMap::from([(String::from("HOME"), String::from("/tmp/home"))]),
+            cwd: Some(String::from("/tmp/work")),
+        };
+        write_frame(&mut left, &request).expect("write");
+        let decoded = read_frame::<DaemonRequest>(&mut right).expect("read");
+        match decoded {
+            DaemonRequest::Subscribe { env, cwd } => {
                 assert_eq!(env.get("HOME"), Some(&String::from("/tmp/home")));
                 assert_eq!(cwd.as_deref(), Some("/tmp/work"));
             }

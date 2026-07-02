@@ -75,17 +75,12 @@ pub struct StatuslineSessionsConfig {
     pub other: StatuslineSegmentConfig,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum StatuslineCategoryMode {
+    #[default]
     Current,
     List,
-}
-
-impl Default for StatuslineCategoryMode {
-    fn default() -> Self {
-        Self::Current
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -651,28 +646,28 @@ fn expand_config_patterns(
     env: &BTreeMap<String, String>,
     file_path: &Path,
 ) -> Result<()> {
-    if let Some(categories) = partial.categories.as_mut() {
-        if let Some(rules) = categories.rules.as_mut() {
-            for (rule_index, rule) in rules.iter_mut().enumerate() {
-                if let Some(patterns) = rule.ghq_patterns.as_mut() {
-                    for (pattern_index, pattern) in patterns.iter_mut().enumerate() {
-                        *pattern = expand_pattern(
-                            pattern,
-                            env,
-                            &format!("categories.rules.{rule_index}.ghqPatterns.{pattern_index}"),
-                            file_path,
-                        )?;
-                    }
+    if let Some(categories) = partial.categories.as_mut()
+        && let Some(rules) = categories.rules.as_mut()
+    {
+        for (rule_index, rule) in rules.iter_mut().enumerate() {
+            if let Some(patterns) = rule.ghq_patterns.as_mut() {
+                for (pattern_index, pattern) in patterns.iter_mut().enumerate() {
+                    *pattern = expand_pattern(
+                        pattern,
+                        env,
+                        &format!("categories.rules.{rule_index}.ghqPatterns.{pattern_index}"),
+                        file_path,
+                    )?;
                 }
-                if let Some(patterns) = rule.path_patterns.as_mut() {
-                    for (pattern_index, pattern) in patterns.iter_mut().enumerate() {
-                        *pattern = expand_pattern(
-                            pattern,
-                            env,
-                            &format!("categories.rules.{rule_index}.pathPatterns.{pattern_index}"),
-                            file_path,
-                        )?;
-                    }
+            }
+            if let Some(patterns) = rule.path_patterns.as_mut() {
+                for (pattern_index, pattern) in patterns.iter_mut().enumerate() {
+                    *pattern = expand_pattern(
+                        pattern,
+                        env,
+                        &format!("categories.rules.{rule_index}.pathPatterns.{pattern_index}"),
+                        file_path,
+                    )?;
                 }
             }
         }

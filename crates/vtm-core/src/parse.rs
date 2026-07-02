@@ -40,6 +40,11 @@ pub struct PaneInfo {
     pub tty: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClientInfo {
+    pub name: String,
+}
+
 pub fn parse_int_safe(value: Option<&str>, fallback: i64) -> i64 {
     value
         .and_then(|candidate| candidate.trim().parse::<i64>().ok())
@@ -164,6 +169,20 @@ pub fn parse_pane_list(output: &str) -> Vec<PaneInfo> {
         .collect()
 }
 
+pub fn parse_client_list(output: &str) -> Vec<ClientInfo> {
+    split_non_empty_lines(output)
+        .into_iter()
+        .filter_map(|line| {
+            let name = line.trim().to_string();
+            if name.is_empty() {
+                None
+            } else {
+                Some(ClientInfo { name })
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,5 +194,20 @@ mod tests {
             Some(("dev".to_string(), "2".to_string()))
         );
         assert_eq!(split_window_target("dev"), None);
+    }
+
+    #[test]
+    fn parse_client_list_ignores_empty_lines() {
+        assert_eq!(
+            parse_client_list("/dev/ttys001\n\n/dev/ttys002\n"),
+            vec![
+                ClientInfo {
+                    name: "/dev/ttys001".to_string()
+                },
+                ClientInfo {
+                    name: "/dev/ttys002".to_string()
+                }
+            ]
+        );
     }
 }

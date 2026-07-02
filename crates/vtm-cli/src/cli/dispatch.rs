@@ -1,11 +1,15 @@
+use std::io::Write;
 use std::path::Path;
 
 use anyhow::{Result, anyhow};
+use vtm_core::export::{ExportClientInput, build_state_export};
 use vtm_core::runtime::resolve_ghq_root;
 use vtm_core::state::{
-    cycle_session_in_current_category, get_ordered_categories_with_sessions,
-    refresh_session_categories, remember_current_session_for_current_client,
-    remember_session_for_client, resolve_adjacent_category, set_session_category_override,
+    SessionResolutionContext, category_last_session_option_key, current_category_option_key,
+    cycle_session_in_current_category, get_ordered_categories,
+    get_ordered_categories_with_sessions, refresh_session_categories,
+    remember_current_session_for_current_client, remember_session_for_client,
+    resolve_adjacent_category, set_session_category_override,
     use_category_and_switch_to_last_session,
 };
 
@@ -16,7 +20,7 @@ use crate::cli::statusline::{run_statusline_category, run_statusline_sessions};
 use crate::cli::{CliResponse, EXIT_ERROR, EXIT_OK, EXIT_USAGE};
 use crate::daemon::{
     DaemonRequest, DaemonResponse, PROTOCOL_VERSION, ensure_daemon_started, send_daemon_request,
-    serve_daemon, socket_path,
+    serve_daemon, socket_path, stream_daemon_state_exports,
 };
 
 fn render_global_help(program_name: &str) -> String {
@@ -28,6 +32,7 @@ fn render_global_help(program_name: &str) -> String {
         "Commands:".to_string(),
         "  daemon                Manage Rust daemon lifecycle".to_string(),
         "  category              Manage current tmux client category".to_string(),
+        "  export                Export machine-readable state".to_string(),
         "  hooks                 Update client state from tmux hook events".to_string(),
         "  project               Create or switch tmux sessions by project path".to_string(),
         "  session               Manage tmux session metadata".to_string(),
@@ -129,11 +134,21 @@ fn run_daemon_command(args: &[String], ctx: &AppContext) -> Result<CliResponse> 
 }
 
 fn should_use_daemon(args: &[String], env: &std::collections::BTreeMap<String, String>) -> bool {
+    if args
+        == [
+            String::from("export"),
+            String::from("subscribe"),
+            String::from("--json"),
+        ]
+    {
+        return false;
+    }
     match args.first().map(String::as_str) {
         Some(
             "statusline-category"
             | "statusline-sessions"
             | "category"
+            | "export"
             | "session-cycle"
             | "hooks"
             | "session"
@@ -159,6 +174,89 @@ fn forward_to_daemon(args: &[String], ctx: &AppContext) -> Result<CliResponse> {
         DaemonResponse::Error(message) => Err(anyhow!(message)),
         other => Err(anyhow!("unexpected daemon response: {:?}", other)),
     }
+}
+
+fn collect_export_clients(
+    tmux: &vtm_core::tmux::TmuxClient,
+    categories: &[String],
+) -> Result<Vec<ExportClientInput>> {
+    tmux.list_clients()?
+        .into_iter()
+        .map(|client| {
+            let current_category =
+                tmux.show_client_option(&client.name, current_category_option_key())?;
+            let mut last_sessions = std::collections::BTreeMap::new();
+            for category in categories {
+                let session = tmux.show_client_option(
+                    &client.name,
+                    &category_last_session_option_key(category),
+                )?;
+                if !session.trim().is_empty() {
+                    last_sessions.insert(category.clone(), session);
+                }
+            }
+            Ok(ExportClientInput {
+                client: client.name,
+                current_category: if current_category.trim().is_empty() {
+                    None
+                } else {
+                    Some(current_category)
+                },
+                last_sessions,
+            })
+        })
+        .collect()
+}
+
+fn run_export_command(
+    args: &[String],
+    ctx: &AppContext,
+    tmux: &vtm_core::tmux::TmuxClient,
+    config: &vtm_core::config::ResolvedConfig,
+    home_directory: &str,
+    ghq_root: Option<&str>,
+) -> Result<CliResponse> {
+    if args != ["state", "--json"] {
+        return Ok(CliResponse {
+            exit_code: EXIT_USAGE,
+            stdout: String::new(),
+            stderr: "Usage: vtm export state --json\n       vtm export subscribe --json"
+                .to_string(),
+        });
+    }
+
+    let sessions = ctx.list_session_details(tmux)?;
+    let categories = get_ordered_categories(config);
+    let clients = collect_export_clients(tmux, &categories)?;
+    let export = build_state_export(&sessions, &clients, config, home_directory, ghq_root);
+    Ok(CliResponse {
+        exit_code: EXIT_OK,
+        stdout: format!("{}\n", serde_json::to_string_pretty(&export)?),
+        stderr: String::new(),
+    })
+}
+
+fn run_export_subscribe_command(args: &[String], ctx: &AppContext) -> Result<CliResponse> {
+    if args != ["subscribe", "--json"] {
+        return Ok(CliResponse {
+            exit_code: EXIT_USAGE,
+            stdout: String::new(),
+            stderr: "Usage: vtm export state --json\n       vtm export subscribe --json"
+                .to_string(),
+        });
+    }
+    let socket = ensure_daemon_started(&ctx.env)?;
+    let cwd = ctx.cwd.as_ref().map(|value| value.display().to_string());
+    stream_daemon_state_exports(&socket, ctx.env.clone(), cwd, |export| {
+        println!("{}", serde_json::to_string(&export)?);
+        std::io::stdout().flush()?;
+        Ok(())
+    })?;
+    Ok(CliResponse {
+        exit_code: EXIT_OK,
+        stdout: String::new(),
+        stderr: String::new(),
+    })
 }
 
 pub fn run_cli_with_context(
@@ -193,11 +291,20 @@ pub fn run_cli_with_context(
     }
 
     if allow_daemon_forward && should_use_daemon(args, &ctx.env) {
-        return forward_to_daemon(args, ctx);
+        match forward_to_daemon(args, ctx) {
+            Ok(response) => return Ok(response),
+            Err(error) if args.first().map(String::as_str) == Some("export") => {
+                let _ = error;
+            }
+            Err(error) => return Err(error),
+        }
     }
 
     match args[0].as_str() {
         "daemon" => return run_daemon_command(&args[1..], ctx),
+        "export" if args.get(1).map(String::as_str) == Some("subscribe") => {
+            return run_export_subscribe_command(&args[1..], ctx);
+        }
         "session-manager" => return run_session_manager(&args[1..], ctx),
         "statusline-category" => return run_statusline_category(&args[1..], ctx),
         "statusline-sessions" => return run_statusline_sessions(&args[1..], ctx),
@@ -269,6 +376,14 @@ pub fn run_cli_with_context(
                 stderr: "Usage: vtm category use <name>\n       vtm category next\n       vtm category prev".to_string(),
             }),
         },
+        "export" => run_export_command(
+            &args[1..],
+            ctx,
+            &tmux,
+            &config,
+            &home_directory,
+            ghq_root.as_deref(),
+        ),
         "session-cycle" => {
             let Some(direction) = args.get(1) else {
                 return Ok(CliResponse {
@@ -378,9 +493,11 @@ pub fn run_cli_with_context(
                     &config,
                     &args[2],
                     &args[3],
-                    &home_directory,
-                    ghq_root.as_deref(),
-                    &sessions,
+                    SessionResolutionContext {
+                        home_directory: &home_directory,
+                        ghq_root: ghq_root.as_deref(),
+                        sessions: &sessions,
+                    },
                     true,
                 )?;
             } else {
@@ -449,12 +566,78 @@ exit 1
         fs::set_permissions(&script_path, perms).expect("chmod");
     }
 
+    fn install_fake_export_tmux(bin_dir: &Path) {
+        let script_path = bin_dir.join("tmux");
+        fs::write(
+            &script_path,
+            r##"#!/bin/sh
+if [ "$1" = "list-sessions" ]; then
+  printf '$1	manual	1	1751400000		/tmp/manual	private\n'
+  printf '$2	company	0	1751400001		/home/me/ghq/github.com/company/app	\n'
+  printf '$3	oss-tool	0	1751400002			\n'
+  exit 0
+fi
+if [ "$1" = "list-clients" ]; then
+  printf '/dev/ttys003\n'
+  exit 0
+fi
+if [ "$1" = "show-option" ] && [ "$2" = "-sqv" ] && [ "$3" = "@client_2f6465762f74747973303033_current_category" ]; then
+  printf 'private\n'
+  exit 0
+fi
+if [ "$1" = "show-option" ] && [ "$2" = "-sqv" ] && [ "$3" = "@client_2f6465762f74747973303033_category_last_session_70726976617465" ]; then
+  printf 'manual\n'
+  exit 0
+fi
+if [ "$1" = "show-option" ] && [ "$2" = "-sqv" ]; then
+  printf ''
+  exit 0
+fi
+printf 'unexpected args: %s\n' "$*" >&2
+exit 1
+"##,
+        )
+        .expect("write fake tmux");
+        let mut perms = fs::metadata(&script_path).expect("metadata").permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&script_path, perms).expect("chmod");
+    }
+
     fn write_test_config(home_dir: &Path) {
         let config_dir = home_dir.join(".config").join("vde").join("tmux-manager");
         fs::create_dir_all(&config_dir).expect("config dir");
         fs::write(
             config_dir.join("config.yml"),
             "categories:\n  defaultCategory: default\n",
+        )
+        .expect("config file");
+    }
+
+    fn write_export_test_config(home_dir: &Path) {
+        let config_dir = home_dir.join(".config").join("vde").join("tmux-manager");
+        fs::create_dir_all(&config_dir).expect("config dir");
+        fs::write(
+            config_dir.join("config.yml"),
+            r#"ghqRoot: /home/me/ghq
+categories:
+  defaultCategory: private
+  displayNames:
+    private: Private
+    public: Public
+    work: Work
+  order:
+    private: 0
+    public: 1
+    work: 2
+  rules:
+    - category: work
+      ghqPatterns:
+        - github.com/company/**
+  sessionNameRules:
+    - category: public
+      patterns:
+        - oss-*
+"#,
         )
         .expect("config file");
     }
@@ -496,5 +679,47 @@ exit 1
             .expect("response");
         assert_eq!(response.exit_code, EXIT_OK);
         assert!(!response.stdout.trim().is_empty());
+    }
+
+    #[test]
+    fn exports_state_as_json() {
+        let temp_dir = unique_temp_dir("dispatch-export-test");
+        let bin_dir = temp_dir.join("bin");
+        fs::create_dir_all(&bin_dir).expect("bin dir");
+        install_fake_export_tmux(&bin_dir);
+        write_export_test_config(&temp_dir);
+
+        let path_value = std::env::var("PATH").unwrap_or_default();
+        let ctx = AppContext::new(
+            BTreeMap::from([
+                (String::from("HOME"), temp_dir.display().to_string()),
+                (
+                    String::from("PATH"),
+                    format!("{}:{}", bin_dir.display(), path_value),
+                ),
+            ]),
+            None,
+            None,
+        );
+        let response = run_cli_with_context(
+            &[
+                String::from("export"),
+                String::from("state"),
+                String::from("--json"),
+            ],
+            &ctx,
+            false,
+        )
+        .expect("response");
+
+        assert_eq!(response.exit_code, EXIT_OK);
+        let value: serde_json::Value = serde_json::from_str(&response.stdout).expect("json");
+        assert_eq!(value["version"], 1);
+        assert_eq!(value["sessions"][0]["categorySource"], "override");
+        assert_eq!(value["sessions"][1]["categorySource"], "pathRule");
+        assert_eq!(value["sessions"][2]["categorySource"], "sessionNameRule");
+        assert_eq!(value["clients"][0]["client"], "/dev/ttys003");
+        assert_eq!(value["clients"][0]["currentCategory"], "private");
+        assert_eq!(value["clients"][0]["lastSessions"]["private"], "manual");
     }
 }

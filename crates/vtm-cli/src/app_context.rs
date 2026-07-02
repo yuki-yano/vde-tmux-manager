@@ -49,14 +49,15 @@ impl AppContext {
             let guard = shared
                 .lock()
                 .map_err(|_| anyhow!("daemon state poisoned"))?;
-            if let Some(cache) = &guard.config_cache {
-                if cache.path == path && cache.mtime == mtime {
-                    return Ok(LoadConfigResult {
-                        config: cache.config.clone(),
-                        path: cache.path.clone(),
-                        loaded: cache.loaded,
-                    });
-                }
+            if let Some(cache) = &guard.config_cache
+                && cache.path == path
+                && cache.mtime == mtime
+            {
+                return Ok(LoadConfigResult {
+                    config: cache.config.clone(),
+                    path: cache.path.clone(),
+                    loaded: cache.loaded,
+                });
             }
             drop(guard);
             let result = load_config(&self.env)?;
@@ -79,15 +80,14 @@ impl AppContext {
             let guard = shared
                 .lock()
                 .map_err(|_| anyhow!("daemon state poisoned"))?;
-            if let Some(snapshot) = &guard.snapshot_cache {
-                if snapshot
+            if let Some(snapshot) = &guard.snapshot_cache
+                && snapshot
                     .synced_at
                     .elapsed()
                     .map(|value| value <= Duration::from_millis(SNAPSHOT_TTL_MS))
                     .unwrap_or(false)
-                {
-                    return Ok(snapshot.sessions.clone());
-                }
+            {
+                return Ok(snapshot.sessions.clone());
             }
             drop(guard);
             let sessions = tmux.list_session_details()?;
@@ -107,10 +107,10 @@ impl AppContext {
     }
 
     pub fn invalidate_snapshot(&self) {
-        if let Some(shared) = &self.daemon_state {
-            if let Ok(mut guard) = shared.lock() {
-                guard.snapshot_cache = None;
-            }
+        if let Some(shared) = &self.daemon_state
+            && let Ok(mut guard) = shared.lock()
+        {
+            guard.snapshot_cache = None;
         }
     }
 }

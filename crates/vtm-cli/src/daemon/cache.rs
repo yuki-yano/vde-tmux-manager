@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use vtm_core::config::ResolvedConfig;
 use vtm_core::parse::SessionDetails;
 
-pub const PROTOCOL_VERSION: &str = "1";
+pub const PROTOCOL_VERSION: &str = "2";
 pub const SNAPSHOT_TTL_MS: u64 = 150;
 
 #[derive(Debug)]

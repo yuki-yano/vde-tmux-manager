@@ -23,9 +23,7 @@ pub struct CommandResult {
 }
 
 fn build_env(overlay: &BTreeMap<String, String>) -> BTreeMap<OsString, OsString> {
-    let mut merged = std::env::vars_os()
-        .map(|(k, v)| (k, v))
-        .collect::<BTreeMap<OsString, OsString>>();
+    let mut merged = std::env::vars_os().collect::<BTreeMap<OsString, OsString>>();
     for (key, value) in overlay {
         merged.insert(OsString::from(key), OsString::from(value));
     }
@@ -59,14 +57,13 @@ where
         .spawn()
         .with_context(|| format!("failed to spawn command: {command}"))?;
 
-    if !options.inherit_stdio {
-        if let Some(input) = &options.input {
-            if let Some(stdin) = child.stdin.as_mut() {
-                stdin
-                    .write_all(input.as_bytes())
-                    .with_context(|| format!("failed to write stdin for: {command}"))?;
-            }
-        }
+    if !options.inherit_stdio
+        && let Some(input) = &options.input
+        && let Some(stdin) = child.stdin.as_mut()
+    {
+        stdin
+            .write_all(input.as_bytes())
+            .with_context(|| format!("failed to write stdin for: {command}"))?;
     }
 
     let output = child

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use vtm_core::export::StateExport;
 
 use crate::cli::CliResponse;
 
@@ -9,6 +10,10 @@ pub enum DaemonRequest {
     Status,
     Reload,
     Shutdown,
+    Subscribe {
+        env: BTreeMap<String, String>,
+        cwd: Option<String>,
+    },
     Cli {
         args: Vec<String>,
         env: BTreeMap<String, String>,
@@ -33,5 +38,6 @@ pub enum DaemonResponse {
     Status(DaemonStatus),
     Ack,
     Cli(CliResponse),
+    StateExport(StateExport),
     Error(String),
 }

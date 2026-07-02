@@ -66,6 +66,8 @@ cargo install --path crates/vtm-cli --bin vtm
 - `vtm category use <name>`
 - `vtm category next`
 - `vtm category prev`
+- `vtm export state --json`
+- `vtm export subscribe --json`
 - `vtm hooks on-client-session-changed [<client-name> <session-name>]`
 - `vtm session-cycle next`
 - `vtm session-cycle prev`
@@ -204,6 +206,58 @@ category 名は文字列のまま使い、整数順は `categories.order` で別
 Schema ファイル:
 
 - [`schemas/config.schema.json`](./schemas/config.schema.json)
+
+## 機械可読 State Export
+
+解決済みの category/session/client state を JSON として出力します。
+
+```bash
+vtm export state --json
+```
+
+daemon が利用できる場合は daemon 経由で動作し、繰り返し呼び出す consumer は daemon の snapshot cache を利用できます。daemon を起動または接続できない場合は、tmux から直接 state を解決します。
+
+解決済み state の変更を購読できます。
+
+```bash
+vtm export subscribe --json
+```
+
+subscribe command は daemon socket 接続を維持し、1 行に 1 つの compact JSON object を出力します。各 object は `vtm export state --json` と同じ schema で、daemon は export 結果が変わったときに全 state を push します。
+
+出力スキーマ:
+
+- [`schemas/state-export.schema.json`](./schemas/state-export.schema.json)
+
+出力例:
+
+```json
+{
+  "version": 1,
+  "categories": [
+    { "name": "private", "displayName": "Private", "order": 0 }
+  ],
+  "sessions": [
+    {
+      "name": "dotfiles",
+      "category": "private",
+      "categorySource": "sessionNameRule",
+      "projectPath": "/Users/you/dotfiles",
+      "attached": true,
+      "activity": 1751400000
+    }
+  ],
+  "clients": [
+    {
+      "client": "/dev/ttys003",
+      "currentCategory": "private",
+      "lastSessions": { "private": "dotfiles" }
+    }
+  ]
+}
+```
+
+`version` は互換性契約を表します。同一 version では field 追加のみを行い、field の削除や rename などの破壊的変更では `version` を上げます。
 
 ## tmux 連携例
 

@@ -3,7 +3,8 @@ use vtm_core::config::{ResolvedConfig, StatuslineCategoryMode, StatuslineSegment
 use vtm_core::format::render_tmux_statusline_segment;
 use vtm_core::parse::SessionIdentity;
 use vtm_core::state::{
-    get_current_category, get_ordered_categories_with_sessions, get_sessions_in_category,
+    SessionResolutionContext, SwitchClientSessionRequest, get_current_category,
+    get_ordered_categories_with_sessions, get_sessions_in_category,
     switch_client_and_remember_session, use_category_and_switch_to_last_session,
 };
 
@@ -280,13 +281,17 @@ pub fn run_statusline_sessions(args: &[String], ctx: &AppContext) -> Result<CliR
         switch_client_and_remember_session(
             &tmux,
             &config,
-            &target_session.name,
-            Some(&current_category),
-            &home_directory,
-            ghq_root.as_deref(),
-            Some(&client_name),
-            &session_details,
-            true,
+            SwitchClientSessionRequest {
+                session_name: &target_session.name,
+                category_name: Some(&current_category),
+                client_name: Some(&client_name),
+                skip_current_category_update: true,
+            },
+            SessionResolutionContext {
+                home_directory: &home_directory,
+                ghq_root: ghq_root.as_deref(),
+                sessions: &session_details,
+            },
         )?;
         ctx.invalidate_snapshot();
         return Ok(CliResponse {

@@ -13,7 +13,8 @@ use vtm_core::parse::{
 use vtm_core::preview::render_preview_once;
 use vtm_core::runtime::resolve_ghq_root;
 use vtm_core::state::{
-    get_current_category, resolve_effective_session_category, switch_client_and_remember_session,
+    SessionResolutionContext, SwitchClientSessionRequest, get_current_category,
+    resolve_effective_session_category, switch_client_and_remember_session,
 };
 
 use crate::app_context::{AppContext, is_in_tmux};
@@ -257,9 +258,9 @@ fn compute_column_widths(rows: &[SelectorRow]) -> Vec<usize> {
 
     for row in rows {
         let limit = last_used_column_index(&row.columns);
-        for index in 0..limit {
+        for (index, width) in widths.iter_mut().enumerate().take(limit) {
             let column = row.columns.get(index).map(String::as_str).unwrap_or("");
-            widths[index] = widths[index].max(visible_width(column));
+            *width = (*width).max(visible_width(column));
         }
     }
 
@@ -323,37 +324,39 @@ fn build_preview_window_option(width_value: &str) -> String {
     format!("right:{}%:border-left", FZF_DEFAULT_PREVIEW_WIDTH)
 }
 
-fn run_fzf(
-    entries: &[SelectorEntry],
-    prompt: &str,
-    header_text: &str,
-    border: &str,
-    preview_width: &str,
-    preview_command: &str,
-    popup_width: &str,
-    popup_height: &str,
+struct FzfOptions<'a> {
+    prompt: &'a str,
+    header_text: &'a str,
+    border: &'a str,
+    preview_width: &'a str,
+    preview_command: &'a str,
+    popup_width: &'a str,
+    popup_height: &'a str,
     force_plain: bool,
     in_tmux: bool,
-    env: &BTreeMap<String, String>,
-) -> Result<Vec<String>> {
+    env: &'a BTreeMap<String, String>,
+}
+
+fn run_fzf(entries: &[SelectorEntry], options: FzfOptions<'_>) -> Result<Vec<String>> {
     if entries.is_empty() {
         return Ok(Vec::new());
     }
 
-    let use_fzf_tmux = !force_plain && in_tmux && command_exists("fzf-tmux", env)?;
+    let use_fzf_tmux =
+        !options.force_plain && options.in_tmux && command_exists("fzf-tmux", options.env)?;
     let binary = if use_fzf_tmux { "fzf-tmux" } else { "fzf" };
-    let border_option = if in_tmux {
+    let border_option = if options.in_tmux {
         "--border=none".to_string()
     } else {
-        match border.trim().to_lowercase().as_str() {
+        match options.border.trim().to_lowercase().as_str() {
             "" | "none" | "0" | "false" | "off" => "--border=none".to_string(),
-            _ => format!("--border={}", border.trim()),
+            _ => format!("--border={}", options.border.trim()),
         }
     };
     let mut args = vec![
         "--ansi".to_string(),
-        format!("--prompt={prompt}"),
-        format!("--header={header_text}"),
+        format!("--prompt={}", options.prompt),
+        format!("--header={}", options.header_text),
         border_option,
         "--delimiter=\t".to_string(),
         "--with-nth=3".to_string(),
@@ -365,10 +368,10 @@ fn run_fzf(
         "--exact".to_string(),
         "--expect=enter,ctrl-q,ctrl-t,ctrl-r".to_string(),
         "--multi".to_string(),
-        format!("--preview={preview_command}"),
+        format!("--preview={}", options.preview_command),
         format!(
             "--preview-window={}",
-            build_preview_window_option(preview_width)
+            build_preview_window_option(options.preview_width)
         ),
         "--bind=ctrl-d:preview-page-down".to_string(),
         "--bind=ctrl-u:preview-page-up".to_string(),
@@ -376,7 +379,10 @@ fn run_fzf(
     if use_fzf_tmux {
         args.splice(
             0..0,
-            [String::from("-p"), format!("{popup_width},{popup_height}")],
+            [
+                String::from("-p"),
+                format!("{},{}", options.popup_width, options.popup_height),
+            ],
         );
     }
     let payload = format!(
@@ -389,7 +395,7 @@ fn run_fzf(
     );
     let options = CommandOptions {
         allow_fail: true,
-        env: env.clone(),
+        env: options.env.clone(),
         input: Some(payload),
         ..CommandOptions::default()
     };
@@ -556,13 +562,12 @@ fn run_selection(
         if is_in_tmux(&ctx.env) && !targets.is_empty() {
             let sessions = tmux.list_sessions()?;
             let current = tmux.current_session()?;
-            if targets.contains(&current) {
-                if let Some(fallback) = sessions
+            if targets.contains(&current)
+                && let Some(fallback) = sessions
                     .iter()
                     .find(|session| !targets.contains(&session.name))
-                {
-                    tmux.switch_client(&fallback.name)?;
-                }
+            {
+                tmux.switch_client(&fallback.name)?;
             }
         }
         for selection in &selections {
@@ -616,19 +621,24 @@ fn run_selection(
     let load = ctx.load_config()?;
     let ghq_root = resolve_ghq_root(Some(&load.config), &ctx.env)?;
     let sessions = ctx.list_session_details(tmux)?;
+    let home_directory = ctx.home_dir()?;
     match action.as_str() {
         "session" => {
             if is_in_tmux(&ctx.env) {
                 switch_client_and_remember_session(
                     tmux,
                     &load.config,
-                    &name,
-                    None,
-                    &ctx.home_dir()?,
-                    ghq_root.as_deref(),
-                    None,
-                    &sessions,
-                    false,
+                    SwitchClientSessionRequest {
+                        session_name: &name,
+                        category_name: None,
+                        client_name: None,
+                        skip_current_category_update: false,
+                    },
+                    SessionResolutionContext {
+                        home_directory: &home_directory,
+                        ghq_root: ghq_root.as_deref(),
+                        sessions: &sessions,
+                    },
                 )?;
             } else {
                 tmux.attach_session(&name, true)?;
@@ -642,13 +652,17 @@ fn run_selection(
                 switch_client_and_remember_session(
                     tmux,
                     &load.config,
-                    &session_name,
-                    None,
-                    &ctx.home_dir()?,
-                    ghq_root.as_deref(),
-                    None,
-                    &sessions,
-                    false,
+                    SwitchClientSessionRequest {
+                        session_name: &session_name,
+                        category_name: None,
+                        client_name: None,
+                        skip_current_category_update: false,
+                    },
+                    SessionResolutionContext {
+                        home_directory: &home_directory,
+                        ghq_root: ghq_root.as_deref(),
+                        sessions: &sessions,
+                    },
                 )?;
                 tmux.select_window(&name)?;
             } else {
@@ -732,7 +746,7 @@ pub fn run_session_manager(args: &[String], ctx: &AppContext) -> Result<CliRespo
         }
         loop {
             let preview = render_preview_once(&tmux, &config, action, name, &ctx.env)?;
-            print!("\u{1b}[H\u{1b}[2J{preview}\n");
+            println!("\u{1b}[H\u{1b}[2J{preview}");
             let _ = std::io::stdout().flush();
             std::thread::sleep(Duration::from_millis(refresh_ms as u64));
         }
@@ -796,16 +810,18 @@ pub fn run_session_manager(args: &[String], ctx: &AppContext) -> Result<CliRespo
     );
     let lines = run_fzf(
         &entries,
-        &config.session_manager.fzf.prompt,
-        &header_text,
-        &config.session_manager.fzf.border,
-        &config.session_manager.fzf.preview_width,
-        &preview_command,
-        &config.session_manager.popup.width,
-        &config.session_manager.popup.height,
-        popup,
-        in_tmux,
-        &ctx.env,
+        FzfOptions {
+            prompt: &config.session_manager.fzf.prompt,
+            header_text: &header_text,
+            border: &config.session_manager.fzf.border,
+            preview_width: &config.session_manager.fzf.preview_width,
+            preview_command: &preview_command,
+            popup_width: &config.session_manager.popup.width,
+            popup_height: &config.session_manager.popup.height,
+            force_plain: popup,
+            in_tmux,
+            env: &ctx.env,
+        },
     )?;
     run_selection(ctx, &tmux, &config, popup, &lines)?;
     Ok(CliResponse {

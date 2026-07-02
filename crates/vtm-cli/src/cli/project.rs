@@ -5,7 +5,9 @@ use vtm_core::command::{CommandOptions, run_command};
 use vtm_core::config::ResolvedConfig;
 use vtm_core::matcher::resolve_project_path_category;
 use vtm_core::runtime::resolve_ghq_root;
-use vtm_core::state::switch_client_and_remember_session;
+use vtm_core::state::{
+    SessionResolutionContext, SwitchClientSessionRequest, switch_client_and_remember_session,
+};
 use vtm_core::tmux::TmuxClient;
 
 use crate::app_context::{AppContext, is_in_tmux};
@@ -58,8 +60,7 @@ fn session_name_from_project_path(project_path: &str) -> Result<String> {
         .map(|value| value.to_string_lossy().into_owned())
         .unwrap_or_default()
         .trim()
-        .replace(':', "-")
-        .replace('.', "-");
+        .replace([':', '.'], "-");
     if name.is_empty() {
         return Err(anyhow!(
             "failed to derive session name from path: {project_path}"
@@ -114,16 +115,21 @@ pub fn switch_project_session(
     ctx.invalidate_snapshot();
     if is_in_tmux(&ctx.env) {
         let sessions = ctx.list_session_details(tmux)?;
+        let home_directory = ctx.home_dir()?;
         switch_client_and_remember_session(
             tmux,
             config,
-            &session_name,
-            Some(&category),
-            &ctx.home_dir()?,
-            ghq_root.as_deref(),
-            None,
-            &sessions,
-            false,
+            SwitchClientSessionRequest {
+                session_name: &session_name,
+                category_name: Some(&category),
+                client_name: None,
+                skip_current_category_update: false,
+            },
+            SessionResolutionContext {
+                home_directory: &home_directory,
+                ghq_root: ghq_root.as_deref(),
+                sessions: &sessions,
+            },
         )?;
     }
     Ok(())

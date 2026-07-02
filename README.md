@@ -66,6 +66,8 @@ cargo install --path crates/vtm-cli --bin vtm
 - `vtm category use <name>`
 - `vtm category next`
 - `vtm category prev`
+- `vtm export state --json`
+- `vtm export subscribe --json`
 - `vtm hooks on-client-session-changed [<client-name> <session-name>]`
 - `vtm session-cycle next`
 - `vtm session-cycle prev`
@@ -204,6 +206,58 @@ When `categories` is omitted, every session belongs to one unnamed category. In 
 Schema file:
 
 - [`schemas/config.schema.json`](./schemas/config.schema.json)
+
+## Machine-Readable State Export
+
+Export the resolved category/session/client state as JSON:
+
+```bash
+vtm export state --json
+```
+
+The command is daemon-backed when the daemon is available, so repeated consumers can reuse the daemon snapshot cache. If the daemon cannot be started or reached, the command resolves the state directly from tmux.
+
+Subscribe to resolved state changes:
+
+```bash
+vtm export subscribe --json
+```
+
+The subscribe command keeps a daemon socket connection open and writes one compact JSON object per line. Each object uses the same schema as `vtm export state --json`, and the daemon pushes the full state whenever the exported state changes.
+
+Output schema:
+
+- [`schemas/state-export.schema.json`](./schemas/state-export.schema.json)
+
+Example:
+
+```json
+{
+  "version": 1,
+  "categories": [
+    { "name": "private", "displayName": "Private", "order": 0 }
+  ],
+  "sessions": [
+    {
+      "name": "dotfiles",
+      "category": "private",
+      "categorySource": "sessionNameRule",
+      "projectPath": "/Users/you/dotfiles",
+      "attached": true,
+      "activity": 1751400000
+    }
+  ],
+  "clients": [
+    {
+      "client": "/dev/ttys003",
+      "currentCategory": "private",
+      "lastSessions": { "private": "dotfiles" }
+    }
+  ]
+}
+```
+
+The `version` field defines the compatibility contract. Additive fields may be introduced within the same version; breaking changes such as removing or renaming fields increment `version`.
 
 ## tmux Integration
 

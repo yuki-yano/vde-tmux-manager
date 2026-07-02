@@ -49,26 +49,30 @@ fn collect_pane_pgids(pane: &PaneInfo, env: &BTreeMap<String, String>) -> Result
     Ok(pgids)
 }
 
-fn clean_kill_target(
-    tmux: &TmuxClient,
-    config: &ResolvedConfig,
-    target: &str,
+struct CleanKillTarget<'a> {
+    target: &'a str,
     recursive: bool,
     single_pane: bool,
     include_current_pane: bool,
+    env: &'a BTreeMap<String, String>,
+}
+
+fn clean_kill_target(
+    tmux: &TmuxClient,
+    config: &ResolvedConfig,
+    request: CleanKillTarget<'_>,
     finalize: impl FnOnce() -> Result<()>,
-    env: &BTreeMap<String, String>,
 ) -> Result<()> {
-    let panes = if single_pane {
-        tmux.get_single_pane(target)?
+    let panes = if request.single_pane {
+        tmux.get_single_pane(request.target)?
     } else {
-        tmux.list_panes(target, recursive)?
+        tmux.list_panes(request.target, request.recursive)?
     };
     if panes.is_empty() {
         return finalize();
     }
-    let current_pane = env.get("TMUX_PANE").cloned().unwrap_or_default();
-    let panes_to_signal = if include_current_pane {
+    let current_pane = request.env.get("TMUX_PANE").cloned().unwrap_or_default();
+    let panes_to_signal = if request.include_current_pane {
         panes.clone()
     } else {
         panes
@@ -88,14 +92,14 @@ fn clean_kill_target(
     }
     let mut pgids = BTreeSet::new();
     for pane in &panes_to_signal {
-        for pgid in collect_pane_pgids(pane, env)? {
+        for pgid in collect_pane_pgids(pane, request.env)? {
             pgids.insert(pgid);
         }
     }
     for pgid in &pgids {
         let options = CommandOptions {
             allow_fail: true,
-            env: env.clone(),
+            env: request.env.clone(),
             ..CommandOptions::default()
         };
         let _ = run_command("kill", ["-TERM", &format!("-{pgid}")], &options)?;
@@ -108,7 +112,7 @@ fn clean_kill_target(
     for pgid in &pgids {
         let options = CommandOptions {
             allow_fail: true,
-            env: env.clone(),
+            env: request.env.clone(),
             ..CommandOptions::default()
         };
         let check = run_command("ps", ["-o", "pid=", "-g", pgid.as_str()], &options)?;
@@ -146,10 +150,10 @@ fn switch_away_from_session(
         .collect::<Vec<_>>();
     let current_index = names.iter().position(|name| name == target).unwrap_or(0);
     let next_index = (current_index + 1) % names.len();
-    if let Some(next) = names.get(next_index) {
-        if next != target {
-            tmux.switch_client(next)?;
-        }
+    if let Some(next) = names.get(next_index)
+        && next != target
+    {
+        tmux.switch_client(next)?;
     }
     Ok(())
 }
@@ -164,12 +168,14 @@ pub fn kill_session_clean(
     clean_kill_target(
         tmux,
         config,
-        &format!("{session_name}:"),
-        true,
-        false,
-        false,
+        CleanKillTarget {
+            target: &format!("{session_name}:"),
+            recursive: true,
+            single_pane: false,
+            include_current_pane: false,
+            env,
+        },
         || tmux.kill_session(session_name),
-        env,
     )
 }
 
@@ -182,12 +188,14 @@ pub fn kill_window_clean(
     clean_kill_target(
         tmux,
         config,
-        target,
-        false,
-        false,
-        false,
+        CleanKillTarget {
+            target,
+            recursive: false,
+            single_pane: false,
+            include_current_pane: false,
+            env,
+        },
         || tmux.kill_window(target),
-        env,
     )
 }
 
@@ -200,12 +208,14 @@ pub fn kill_pane_clean(
     clean_kill_target(
         tmux,
         config,
-        target,
-        false,
-        true,
-        true,
+        CleanKillTarget {
+            target,
+            recursive: false,
+            single_pane: true,
+            include_current_pane: true,
+            env,
+        },
         || tmux.kill_pane(target),
-        env,
     )
 }
 
