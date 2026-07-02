@@ -62,6 +62,14 @@ impl TmuxClient {
             .to_string())
     }
 
+    pub fn current_client_session(&self) -> Result<String> {
+        Ok(self
+            .run(&["display-message", "-p", "#{client_session}"], true)?
+            .stdout
+            .trim()
+            .to_string())
+    }
+
     pub fn list_sessions(&self) -> Result<Vec<SessionMeta>> {
         let result = self.run(
             &[

@@ -144,7 +144,7 @@ fn require_current_client_name(tmux: &TmuxClient, error_message: &str) -> Result
 
 fn read_client_context(tmux: &TmuxClient, error_message: &str) -> Result<(String, String)> {
     let client_name = require_current_client_name(tmux, error_message)?;
-    let session_name = tmux.current_session()?;
+    let session_name = tmux.current_client_session()?;
     Ok((client_name, session_name))
 }
 
@@ -251,7 +251,7 @@ pub fn remember_current_session_for_current_client(
             "remember current session requires tmux client context",
         )?,
     };
-    let session_name = tmux.current_session()?;
+    let session_name = tmux.current_client_session()?;
     if session_name.is_empty() {
         return Ok(None);
     }
@@ -487,4 +487,110 @@ pub fn set_session_category_override(
     tmux.set_session_option(session_name, CATEGORY_OVERRIDE_OPTION, &normalized)?;
     tmux.set_session_option(session_name, CATEGORY_OPTION, &normalized)?;
     Ok(normalized)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use crate::config::default_config;
+    use crate::parse::SessionDetails;
+
+    use super::cycle_session_in_current_category;
+    use crate::tmux::TmuxClient;
+
+    fn unique_temp_dir(label: &str) -> PathBuf {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("vtm-{label}-{stamp}-{}", std::process::id()));
+        fs::create_dir_all(&path).expect("temp dir");
+        path
+    }
+
+    fn install_fake_tmux(bin_dir: &Path) {
+        let script_path = bin_dir.join("tmux");
+        fs::write(
+            &script_path,
+            r##"#!/bin/sh
+if [ "$1" = "display-message" ] && [ "$2" = "-p" ] && [ "$3" = "#{client_name}" ]; then
+  printf 'client-a\n'
+  exit 0
+fi
+if [ "$1" = "display-message" ] && [ "$2" = "-p" ] && [ "$3" = "#{session_name}" ]; then
+  printf 'baz\n'
+  exit 0
+fi
+if [ "$1" = "display-message" ] && [ "$2" = "-p" ] && [ "$3" = "#{client_session}" ]; then
+  printf 'foo-bar\n'
+  exit 0
+fi
+if [ "$1" = "show-option" ]; then
+  printf 'public\n'
+  exit 0
+fi
+if [ "$1" = "set-option" ]; then
+  exit 0
+fi
+if [ "$1" = "switch-client" ] && [ "$2" = "-t" ]; then
+  printf '%s\n' "$3" > "$VTM_TEST_SWITCH_TARGET"
+  exit 0
+fi
+printf 'unexpected args: %s\n' "$*" >&2
+exit 1
+"##,
+        )
+        .expect("write fake tmux");
+        let mut perms = fs::metadata(&script_path).expect("metadata").permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&script_path, perms).expect("chmod");
+    }
+
+    fn session(name: &str) -> SessionDetails {
+        SessionDetails {
+            id: format!("${name}"),
+            name: name.to_string(),
+            attached_clients: 0,
+            last_activity: 0,
+            category: "public".to_string(),
+            project_path: String::new(),
+            category_override: String::new(),
+        }
+    }
+
+    #[test]
+    fn cycle_uses_current_client_session_when_run_shell_session_is_stale() {
+        let temp_dir = unique_temp_dir("state-cycle");
+        let bin_dir = temp_dir.join("bin");
+        fs::create_dir_all(&bin_dir).expect("bin dir");
+        install_fake_tmux(&bin_dir);
+        let switch_target_path = temp_dir.join("switch-target");
+        let path_value = std::env::var("PATH").unwrap_or_default();
+        let tmux = TmuxClient::new(BTreeMap::from([
+            (
+                String::from("PATH"),
+                format!("{}:{}", bin_dir.display(), path_value),
+            ),
+            (
+                String::from("VTM_TEST_SWITCH_TARGET"),
+                switch_target_path.display().to_string(),
+            ),
+        ]));
+        let mut config = default_config();
+        config.categories.default_category = "public".to_string();
+        let sessions = vec![session("baz"), session("foo-bar")];
+
+        cycle_session_in_current_category(&tmux, &config, "next", "/tmp/home", None, &sessions)
+            .expect("cycle");
+
+        assert_eq!(
+            fs::read_to_string(switch_target_path).expect("switch target"),
+            "baz\n"
+        );
+    }
 }

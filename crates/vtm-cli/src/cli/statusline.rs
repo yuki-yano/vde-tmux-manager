@@ -308,7 +308,7 @@ pub fn run_statusline_sessions(args: &[String], ctx: &AppContext) -> Result<CliR
         }
     }
     let current_category = get_current_category(&tmux, &config)?;
-    let current_session = tmux.current_session()?;
+    let current_session = tmux.current_client_session()?;
     let sessions = get_sessions_in_category(
         &ctx.list_session_details(&tmux)?,
         &current_category,
