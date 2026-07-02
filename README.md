@@ -50,7 +50,7 @@ cargo install --path crates/vtm-cli --bin vtm
 ## Project Layout
 
 - `crates/vtm-core`: reusable core logic such as config loading, tmux wrappers, parsing, formatting, preview rendering, and session/category state resolution
-- `crates/vtm-cli`: the `vtm` executable, daemon lifecycle, cache management, and CLI command orchestration
+- `crates/vtm-cli`: the `vtm` executable and CLI command orchestration
 
 ## Commands
 
@@ -58,10 +58,6 @@ cargo install --path crates/vtm-cli --bin vtm
 - `vtm session-manager --popup`
 - `vtm session-manager kill-window <target>`
 - `vtm session-manager kill-pane <target>`
-- `vtm daemon start`
-- `vtm daemon stop`
-- `vtm daemon status`
-- `vtm daemon reload`
 - `vtm project switch <path>`
 - `vtm category use <name>`
 - `vtm category next`
@@ -215,15 +211,13 @@ Export the resolved category/session/client state as JSON:
 vtm export state --json
 ```
 
-The command is daemon-backed when the daemon is available, so repeated consumers can reuse the daemon snapshot cache. If the daemon cannot be started or reached, the command resolves the state directly from tmux.
-
 Subscribe to resolved state changes:
 
 ```bash
 vtm export subscribe --json
 ```
 
-The subscribe command keeps a daemon socket connection open and writes one compact JSON object per line. Each object uses the same schema as `vtm export state --json`, and the daemon pushes the full state whenever the exported state changes.
+The subscribe command polls the tmux state every 500ms and writes one compact JSON object per line. Each object uses the same schema as `vtm export state --json`, and the full state is emitted whenever the exported state changes.
 
 Output schema:
 
@@ -271,12 +265,6 @@ Open session manager:
 
 ```tmux
 bind-key C-f run-shell 'vtm session-manager'
-```
-
-Start daemon explicitly when you want to warm caches before tmux starts invoking statusline commands:
-
-```tmux
-run-shell 'vtm daemon start'
 ```
 
 Switch the current tmux client category:
@@ -370,7 +358,6 @@ This replaces your existing right-click menu with a minimal kill-focused menu.
 ## Troubleshooting
 
 - If `session-manager` does not open, verify `tmux` and `fzf` are available in `PATH`.
-- If daemon state looks stale, run `vtm daemon reload`.
 - If clean kill behavior is incomplete, verify `ps` and `kill` are available.
 - If repo metadata is empty in preview, verify the pane path is inside a Git repository.
 - If your GHQ root is fixed, set `ghqRoot` in config to avoid calling `ghq root` on every command.

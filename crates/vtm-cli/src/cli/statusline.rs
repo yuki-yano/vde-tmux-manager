@@ -190,7 +190,6 @@ pub fn run_statusline_category(args: &[String], ctx: &AppContext) -> Result<CliR
             ghq_root.as_deref(),
             &session_details,
         )?;
-        ctx.invalidate_snapshot();
         return Ok(CliResponse {
             exit_code: EXIT_OK,
             stdout: String::new(),
@@ -293,7 +292,6 @@ pub fn run_statusline_sessions(args: &[String], ctx: &AppContext) -> Result<CliR
                 sessions: &session_details,
             },
         )?;
-        ctx.invalidate_snapshot();
         return Ok(CliResponse {
             exit_code: EXIT_OK,
             stdout: String::new(),

@@ -1,7 +1,7 @@
 use std::io::Write;
-use std::path::Path;
+use std::time::Duration;
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use vtm_core::export::{ExportClientInput, build_state_export};
 use vtm_core::runtime::resolve_ghq_root;
 use vtm_core::state::{
@@ -13,15 +13,13 @@ use vtm_core::state::{
     use_category_and_switch_to_last_session,
 };
 
-use crate::app_context::{AppContext, is_in_tmux};
+use crate::app_context::AppContext;
 use crate::cli::project::switch_project_session;
 use crate::cli::session_manager::run_session_manager;
 use crate::cli::statusline::{run_statusline_category, run_statusline_sessions};
 use crate::cli::{CliResponse, EXIT_ERROR, EXIT_OK, EXIT_USAGE};
-use crate::daemon::{
-    DaemonRequest, DaemonResponse, PROTOCOL_VERSION, ensure_daemon_started, send_daemon_request,
-    serve_daemon, socket_path, stream_daemon_state_exports,
-};
+
+const SUBSCRIBE_POLL_MS: u64 = 500;
 
 fn render_global_help(program_name: &str) -> String {
     [
@@ -30,7 +28,6 @@ fn render_global_help(program_name: &str) -> String {
         format!("Usage: {program_name} <command>"),
         String::new(),
         "Commands:".to_string(),
-        "  daemon                Manage Rust daemon lifecycle".to_string(),
         "  category              Manage current tmux client category".to_string(),
         "  export                Export machine-readable state".to_string(),
         "  hooks                 Update client state from tmux hook events".to_string(),
@@ -47,133 +44,6 @@ fn render_global_help(program_name: &str) -> String {
         "  -v, --version         Show version".to_string(),
     ]
     .join("\n")
-}
-
-fn run_daemon_command(args: &[String], ctx: &AppContext) -> Result<CliResponse> {
-    let socket = socket_path(&ctx.env);
-    match args.first().map(String::as_str) {
-        Some("serve") => {
-            let Some(path) = args.get(1) else {
-                return Ok(CliResponse {
-                    exit_code: EXIT_USAGE,
-                    stdout: String::new(),
-                    stderr: "Usage: vtm daemon serve <socket-path>".to_string(),
-                });
-            };
-            serve_daemon(Path::new(path))?;
-            Ok(CliResponse {
-                exit_code: EXIT_OK,
-                stdout: String::new(),
-                stderr: String::new(),
-            })
-        }
-        Some("start") => {
-            let socket = ensure_daemon_started(&ctx.env)?;
-            Ok(CliResponse {
-                exit_code: EXIT_OK,
-                stdout: format!(
-                    "protocol_version={PROTOCOL_VERSION}\nsocket_path={}\n",
-                    socket.display()
-                ),
-                stderr: String::new(),
-            })
-        }
-        Some("stop") => {
-            let _ = send_daemon_request(&socket, &DaemonRequest::Shutdown);
-            Ok(CliResponse {
-                exit_code: EXIT_OK,
-                stdout: String::new(),
-                stderr: String::new(),
-            })
-        }
-        Some("reload") => {
-            let socket = ensure_daemon_started(&ctx.env)?;
-            match send_daemon_request(&socket, &DaemonRequest::Reload)? {
-                DaemonResponse::Ack => Ok(CliResponse {
-                    exit_code: EXIT_OK,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                }),
-                response => Err(anyhow!("unexpected daemon response: {:?}", response)),
-            }
-        }
-        Some("status") | None => {
-            let socket = ensure_daemon_started(&ctx.env)?;
-            match send_daemon_request(&socket, &DaemonRequest::Status)? {
-                DaemonResponse::Status(status) => Ok(CliResponse {
-                    exit_code: EXIT_OK,
-                    stdout: [
-                        format!("socket_path={}", status.socket_path),
-                        format!("pid={}", status.pid),
-                        format!("uptime_seconds={}", status.uptime_seconds),
-                        format!("protocol_version={}", status.protocol_version),
-                        format!("config_generation={}", status.config_generation),
-                        format!("snapshot_generation={}", status.snapshot_generation),
-                        format!(
-                            "last_full_resync={}",
-                            status
-                                .last_full_resync
-                                .map(|value| value.to_string())
-                                .unwrap_or_default()
-                        ),
-                        format!("last_error={}", status.last_error.unwrap_or_default()),
-                    ]
-                    .join("\n")
-                        + "\n",
-                    stderr: String::new(),
-                }),
-                response => Err(anyhow!("unexpected daemon response: {:?}", response)),
-            }
-        }
-        _ => Ok(CliResponse {
-            exit_code: EXIT_USAGE,
-            stdout: String::new(),
-            stderr: "Usage: vtm daemon <start|stop|status|reload>".to_string(),
-        }),
-    }
-}
-
-fn should_use_daemon(args: &[String], env: &std::collections::BTreeMap<String, String>) -> bool {
-    if args
-        == [
-            String::from("export"),
-            String::from("subscribe"),
-            String::from("--json"),
-        ]
-    {
-        return false;
-    }
-    match args.first().map(String::as_str) {
-        Some(
-            "statusline-category"
-            | "statusline-sessions"
-            | "category"
-            | "export"
-            | "session-cycle"
-            | "hooks"
-            | "session"
-            | "sessions",
-        ) => true,
-        Some("project") => is_in_tmux(env),
-        _ => false,
-    }
-}
-
-fn forward_to_daemon(args: &[String], ctx: &AppContext) -> Result<CliResponse> {
-    let socket = ensure_daemon_started(&ctx.env)?;
-    let response = send_daemon_request(
-        &socket,
-        &DaemonRequest::Cli {
-            args: args.to_vec(),
-            env: ctx.env.clone(),
-            cwd: ctx.cwd.as_ref().map(|value| value.display().to_string()),
-        },
-    )?;
-    match response {
-        DaemonResponse::Cli(response) => Ok(response),
-        DaemonResponse::Error(message) => Err(anyhow!(message)),
-        other => Err(anyhow!("unexpected daemon response: {:?}", other)),
-    }
 }
 
 fn collect_export_clients(
@@ -236,6 +106,33 @@ fn run_export_command(
     })
 }
 
+fn build_subscribe_payload(ctx: &AppContext) -> Result<String> {
+    let tmux = ctx.tmux();
+    let load = ctx.load_config()?;
+    let config = load.config;
+    let home_directory = ctx.home_dir()?;
+    let ghq_root = resolve_ghq_root(Some(&config), &ctx.env)?;
+    let sessions = ctx.list_session_details(&tmux)?;
+    let categories = get_ordered_categories(&config);
+    let clients = collect_export_clients(&tmux, &categories)?;
+    let export = build_state_export(
+        &sessions,
+        &clients,
+        &config,
+        &home_directory,
+        ghq_root.as_deref(),
+    );
+    Ok(serde_json::to_string(&export)?)
+}
+
+fn subscribe_should_emit(last_payload: &mut Option<String>, payload: &str) -> bool {
+    if last_payload.as_deref() == Some(payload) {
+        return false;
+    }
+    *last_payload = Some(payload.to_string());
+    true
+}
+
 fn run_export_subscribe_command(args: &[String], ctx: &AppContext) -> Result<CliResponse> {
     if args != ["subscribe", "--json"] {
         return Ok(CliResponse {
@@ -245,25 +142,18 @@ fn run_export_subscribe_command(args: &[String], ctx: &AppContext) -> Result<Cli
                 .to_string(),
         });
     }
-    let socket = ensure_daemon_started(&ctx.env)?;
-    let cwd = ctx.cwd.as_ref().map(|value| value.display().to_string());
-    stream_daemon_state_exports(&socket, ctx.env.clone(), cwd, |export| {
-        println!("{}", serde_json::to_string(&export)?);
-        std::io::stdout().flush()?;
-        Ok(())
-    })?;
-    Ok(CliResponse {
-        exit_code: EXIT_OK,
-        stdout: String::new(),
-        stderr: String::new(),
-    })
+    let mut last_payload = None::<String>;
+    loop {
+        let payload = build_subscribe_payload(ctx)?;
+        if subscribe_should_emit(&mut last_payload, &payload) {
+            println!("{payload}");
+            std::io::stdout().flush()?;
+        }
+        std::thread::sleep(Duration::from_millis(SUBSCRIBE_POLL_MS));
+    }
 }
 
-pub fn run_cli_with_context(
-    args: &[String],
-    ctx: &AppContext,
-    allow_daemon_forward: bool,
-) -> Result<CliResponse> {
+pub fn run_cli_with_context(args: &[String], ctx: &AppContext) -> Result<CliResponse> {
     let program_name = "vtm";
     if args.is_empty() {
         return Ok(CliResponse {
@@ -290,18 +180,7 @@ pub fn run_cli_with_context(
         _ => {}
     }
 
-    if allow_daemon_forward && should_use_daemon(args, &ctx.env) {
-        match forward_to_daemon(args, ctx) {
-            Ok(response) => return Ok(response),
-            Err(error) if args.first().map(String::as_str) == Some("export") => {
-                let _ = error;
-            }
-            Err(error) => return Err(error),
-        }
-    }
-
     match args[0].as_str() {
-        "daemon" => return run_daemon_command(&args[1..], ctx),
         "export" if args.get(1).map(String::as_str) == Some("subscribe") => {
             return run_export_subscribe_command(&args[1..], ctx);
         }
@@ -346,7 +225,6 @@ pub fn run_cli_with_context(
                     ghq_root.as_deref(),
                     &sessions,
                 )?;
-                ctx.invalidate_snapshot();
                 Ok(CliResponse {
                     exit_code: EXIT_OK,
                     stdout: String::new(),
@@ -363,7 +241,6 @@ pub fn run_cli_with_context(
                     ghq_root.as_deref(),
                     &sessions,
                 )?;
-                ctx.invalidate_snapshot();
                 Ok(CliResponse {
                     exit_code: EXIT_OK,
                     stdout: String::new(),
@@ -438,7 +315,6 @@ pub fn run_cli_with_context(
                 });
             }
             set_session_category_override(&tmux, &config, &args[2], &args[3])?;
-            ctx.invalidate_snapshot();
             Ok(CliResponse {
                 exit_code: EXIT_OK,
                 stdout: String::new(),
@@ -461,7 +337,6 @@ pub fn run_cli_with_context(
                 ghq_root.as_deref(),
                 &sessions,
             )?;
-            ctx.invalidate_snapshot();
             Ok(CliResponse {
                 exit_code: EXIT_OK,
                 stdout: String::new(),
@@ -643,14 +518,59 @@ categories:
     }
 
     #[test]
+    fn subscribe_emits_initial_payload() {
+        let mut last = None;
+        assert!(super::subscribe_should_emit(&mut last, "{\"version\":1}"));
+        assert_eq!(last.as_deref(), Some("{\"version\":1}"));
+    }
+
+    #[test]
+    fn subscribe_skips_unchanged_payload() {
+        let mut last = Some(String::from("{\"version\":1}"));
+        assert!(!super::subscribe_should_emit(&mut last, "{\"version\":1}"));
+        assert_eq!(last.as_deref(), Some("{\"version\":1}"));
+    }
+
+    #[test]
+    fn subscribe_emits_changed_payload() {
+        let mut last = Some(String::from("{\"version\":1}"));
+        assert!(super::subscribe_should_emit(&mut last, "{\"version\":2}"));
+        assert_eq!(last.as_deref(), Some("{\"version\":2}"));
+    }
+
+    #[test]
+    fn builds_subscribe_payload_as_single_line_json() {
+        let temp_dir = unique_temp_dir("dispatch-subscribe-test");
+        let bin_dir = temp_dir.join("bin");
+        fs::create_dir_all(&bin_dir).expect("bin dir");
+        install_fake_export_tmux(&bin_dir);
+        write_export_test_config(&temp_dir);
+
+        let path_value = std::env::var("PATH").unwrap_or_default();
+        let ctx = AppContext::new(
+            BTreeMap::from([
+                (String::from("HOME"), temp_dir.display().to_string()),
+                (
+                    String::from("PATH"),
+                    format!("{}:{}", bin_dir.display(), path_value),
+                ),
+            ]),
+            None,
+        );
+        let payload = super::build_subscribe_payload(&ctx).expect("payload");
+        assert!(!payload.contains('\n'));
+        let value: serde_json::Value = serde_json::from_str(&payload).expect("json");
+        assert_eq!(value["version"], 1);
+        assert_eq!(value["clients"][0]["client"], "/dev/ttys003");
+    }
+
+    #[test]
     fn returns_unknown_command_error() {
         let ctx = AppContext::new(
             BTreeMap::from([(String::from("HOME"), String::from("/tmp"))]),
             None,
-            None,
         );
-        let response =
-            run_cli_with_context(&[String::from("unknown")], &ctx, false).expect("response");
+        let response = run_cli_with_context(&[String::from("unknown")], &ctx).expect("response");
         assert_eq!(response.exit_code, EXIT_ERROR);
         assert!(response.stderr.contains("Unknown command"));
     }
@@ -673,10 +593,9 @@ categories:
                 ),
             ]),
             None,
-            None,
         );
-        let response = run_cli_with_context(&[String::from("statusline-category")], &ctx, false)
-            .expect("response");
+        let response =
+            run_cli_with_context(&[String::from("statusline-category")], &ctx).expect("response");
         assert_eq!(response.exit_code, EXIT_OK);
         assert!(!response.stdout.trim().is_empty());
     }
@@ -699,7 +618,6 @@ categories:
                 ),
             ]),
             None,
-            None,
         );
         let response = run_cli_with_context(
             &[
@@ -708,7 +626,6 @@ categories:
                 String::from("--json"),
             ],
             &ctx,
-            false,
         )
         .expect("response");
 

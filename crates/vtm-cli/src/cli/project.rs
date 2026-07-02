@@ -112,7 +112,6 @@ pub fn switch_project_session(
         tmux.new_session_interactive_named(&session_name, &project_path, true)?;
     }
     update_session_metadata(tmux, &session_name, &project_path, &category)?;
-    ctx.invalidate_snapshot();
     if is_in_tmux(&ctx.env) {
         let sessions = ctx.list_session_details(tmux)?;
         let home_directory = ctx.home_dir()?;

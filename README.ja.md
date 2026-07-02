@@ -50,7 +50,7 @@ cargo install --path crates/vtm-cli --bin vtm
 ## プロジェクト構成
 
 - `crates/vtm-core`: config 読込、tmux wrapper、parse、format、preview、session/category state 解決などの再利用ロジック
-- `crates/vtm-cli`: `vtm` 実行バイナリ、daemon lifecycle、cache 管理、CLI command orchestration
+- `crates/vtm-cli`: `vtm` 実行バイナリ、CLI command orchestration
 
 ## コマンド
 
@@ -58,10 +58,6 @@ cargo install --path crates/vtm-cli --bin vtm
 - `vtm session-manager --popup`
 - `vtm session-manager kill-window <target>`
 - `vtm session-manager kill-pane <target>`
-- `vtm daemon start`
-- `vtm daemon stop`
-- `vtm daemon status`
-- `vtm daemon reload`
 - `vtm project switch <path>`
 - `vtm category use <name>`
 - `vtm category next`
@@ -215,15 +211,13 @@ Schema ファイル:
 vtm export state --json
 ```
 
-daemon が利用できる場合は daemon 経由で動作し、繰り返し呼び出す consumer は daemon の snapshot cache を利用できます。daemon を起動または接続できない場合は、tmux から直接 state を解決します。
-
 解決済み state の変更を購読できます。
 
 ```bash
 vtm export subscribe --json
 ```
 
-subscribe command は daemon socket 接続を維持し、1 行に 1 つの compact JSON object を出力します。各 object は `vtm export state --json` と同じ schema で、daemon は export 結果が変わったときに全 state を push します。
+subscribe command は 500ms ごとに tmux の state をポーリングし、1 行に 1 つの compact JSON object を出力します。各 object は `vtm export state --json` と同じ schema で、export 結果が変わったときに全 state を出力します。
 
 出力スキーマ:
 
@@ -271,12 +265,6 @@ session manager を開く:
 
 ```tmux
 bind-key C-f run-shell 'vtm session-manager'
-```
-
-statusline 呼び出し前に cache を温めたい場合は daemon を明示起動できます:
-
-```tmux
-run-shell 'vtm daemon start'
 ```
 
 tmux client ごとの current category を切り替える:
@@ -370,7 +358,6 @@ bind-key -n MouseDown3Pane display-menu -T "Pane #{pane_index}" -t = -x M -y M \
 ## トラブルシュート
 
 - `session-manager` が開かない場合は、`tmux` と `fzf` が `PATH` にあるか確認してください。
-- daemon 状態が古いように見える場合は `vtm daemon reload` を実行してください。
 - clean kill が期待通りに動かない場合は、`ps` と `kill` コマンドの有無を確認してください。
 - プレビューのリポジトリ情報が空の場合は、pane の現在パスが Git リポジトリ配下か確認してください。
 - GHQ root が固定なら、config に `ghqRoot` を設定すると毎回 `ghq root` を呼ばなくなります。
