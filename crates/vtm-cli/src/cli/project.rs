@@ -58,7 +58,8 @@ fn session_name_from_project_path(project_path: &str) -> Result<String> {
         .map(|value| value.to_string_lossy().into_owned())
         .unwrap_or_default()
         .trim()
-        .replace(':', "-");
+        .replace(':', "-")
+        .replace('.', "-");
     if name.is_empty() {
         return Err(anyhow!(
             "failed to derive session name from path: {project_path}"
@@ -126,4 +127,17 @@ pub fn switch_project_session(
         )?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::session_name_from_project_path;
+
+    #[test]
+    fn replaces_dots_in_project_basename_for_tmux_session_name() {
+        let session_name = session_name_from_project_path("/tmp/github.com/example/foo.bar")
+            .expect("session name");
+
+        assert_eq!(session_name, "foo-bar");
+    }
 }
